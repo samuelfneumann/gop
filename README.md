@@ -1,7 +1,9 @@
-# gop
-Extended G(orgonia) Op(erations)
+# gop: Extended G(orgonia) Op(erations)
 
-## ToDo:
+This repository adds extended operations to Gorgonia.
+
+## ToDo
+
 * [ ] Erf
 
 * [ ] Clip
