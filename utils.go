@@ -7,6 +7,10 @@ import (
 	"gorgonia.org/gorgonia"
 )
 
+type aritable interface {
+	Arity() int
+}
+
 // SimpleHash constructs the 32-bit FNV-1a hash of a Gorgonia Op.
 // Taken from Gorgonia.
 func SimpleHash(op gorgonia.Op) uint32 {
@@ -15,7 +19,7 @@ func SimpleHash(op gorgonia.Op) uint32 {
 	return h.Sum32()
 }
 
-func CheckArity(op gorgonia.Op, inputs int) error {
+func CheckArity(op aritable, inputs int) error {
 	if inputs != op.Arity() && op.Arity() >= 0 {
 		return fmt.Errorf("%v has an arity of %d. Got %d instead", op,
 			op.Arity(), inputs)
