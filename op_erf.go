@@ -11,25 +11,25 @@ import (
 	"gorgonia.org/tensor"
 )
 
-// ErfOp is the error function
-type ErfOp struct{}
+// erfOp is the error function
+type erfOp struct{}
 
-func NewErfOp() G.Op {
-	return &ErfOp{}
+func newErfOp() G.Op {
+	return &erfOp{}
 }
 
-func (e *ErfOp) Arity() int {
+func (e *erfOp) Arity() int {
 	return 1
 }
 
-func (e *ErfOp) Type() hm.Type {
+func (e *erfOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
 	a := hm.TypeVariable('a')
 	return hm.NewFnType(a, a)
 }
 
-func (e *ErfOp) Do(values ...G.Value) (G.Value, error) {
+func (e *erfOp) Do(values ...G.Value) (G.Value, error) {
 	err := e.checkInputs(values...)
 	if err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -45,19 +45,19 @@ func (e *ErfOp) Do(values ...G.Value) (G.Value, error) {
 	return computeErf(value)
 }
 
-func (e *ErfOp) ReturnsPtr() bool { return true }
+func (e *erfOp) ReturnsPtr() bool { return true }
 
-func (e *ErfOp) CallsExtern() bool { return false }
+func (e *erfOp) CallsExtern() bool { return false }
 
-func (e *ErfOp) OverwritesInput() int { return 0 }
+func (e *erfOp) OverwritesInput() int { return 0 }
 
 // String returns the string representation of the struct
-func (e *ErfOp) String() string {
+func (e *erfOp) String() string {
 	return "Erf"
 }
 
 // InferShape returns the output shape as a function of the inputs
-func (e *ErfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
+func (e *erfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -70,19 +70,19 @@ func (e *ErfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 }
 
 // WriteHash writes the hash of the receiver to a hash struct
-func (e *ErfOp) WriteHash(h hash.Hash) { fmt.Fprintf(h, "Erf()") }
+func (e *erfOp) WriteHash(h hash.Hash) { fmt.Fprintf(h, "Erf()") }
 
 // Hashcode returns the hash code of the receiver
-func (e *ErfOp) Hashcode() uint32 { return SimpleHash(e) }
+func (e *erfOp) Hashcode() uint32 { return SimpleHash(e) }
 
-func (e *ErfOp) SymDiff(inputs G.Nodes, output,
+func (e *erfOp) SymDiff(inputs G.Nodes, output,
 	grad *G.Node) (G.Nodes, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("symDiff: %v", err)
 	}
 
-	diffOp := &ErfDiffOp{}
+	diffOp := &erfDiffOp{}
 	nodes := make(G.Nodes, 1)
 
 	nodes[0], err = G.ApplyOp(diffOp, inputs[0], grad)
@@ -90,7 +90,7 @@ func (e *ErfOp) SymDiff(inputs G.Nodes, output,
 	return nodes, err
 }
 
-func (e *ErfOp) DiffWRT(inputs int) []bool {
+func (e *erfOp) DiffWRT(inputs int) []bool {
 	if inputs != 1 {
 		panic(fmt.Sprintf("erf operator only supports one input, got %d "+
 			"instead", inputs))
@@ -99,7 +99,7 @@ func (e *ErfOp) DiffWRT(inputs int) []bool {
 }
 
 // checkInputs returns an error if the input to this Op is invalid
-func (e *ErfOp) checkInputs(inputs ...G.Value) error {
+func (e *erfOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(e, len(inputs)); err != nil {
 		return err
 	}
@@ -115,21 +115,21 @@ func (e *ErfOp) checkInputs(inputs ...G.Value) error {
 	return nil
 }
 
-type ErfDiffOp struct{}
+type erfDiffOp struct{}
 
-func (e *ErfDiffOp) Arity() int { return 2 }
+func (e *erfDiffOp) Arity() int { return 2 }
 
-func (e *ErfDiffOp) ReturnsPtr() bool { return true }
+func (e *erfDiffOp) ReturnsPtr() bool { return true }
 
-func (e *ErfDiffOp) CallsExtern() bool { return false }
+func (e *erfDiffOp) CallsExtern() bool { return false }
 
-func (e *ErfDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
+func (e *erfDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
 
-func (e *ErfDiffOp) Hashcode() uint32 { return SimpleHash(e) }
+func (e *erfDiffOp) Hashcode() uint32 { return SimpleHash(e) }
 
-func (e *ErfDiffOp) String() string { return "ErfDiff()" }
+func (e *erfDiffOp) String() string { return "ErfDiff()" }
 
-func (e *ErfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
+func (e *erfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -141,17 +141,17 @@ func (e *ErfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	return inputs[0].(tensor.Shape), nil
 }
 
-func (e *ErfDiffOp) Type() hm.Type {
+func (e *erfDiffOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
 	a := hm.TypeVariable('a')
 	return hm.NewFnType(a, a)
 }
 
-func (e *ErfDiffOp) OverwritesInput() int { return -1 }
+func (e *erfDiffOp) OverwritesInput() int { return -1 }
 
 // checkInputs returns an error if the input to this Op is invalid
-func (e *ErfDiffOp) checkInputs(inputs ...G.Value) error {
+func (e *erfDiffOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(e, len(inputs)); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (e *ErfDiffOp) checkInputs(inputs ...G.Value) error {
 	return nil
 }
 
-func (e *ErfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
+func (e *erfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	err := e.checkInputs(inputs...)
 	if err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -187,7 +187,7 @@ func (e *ErfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	return ret, nil
 }
 
-func (e *ErfDiffOp) f64Kernel(shape tensor.Shape, inputData,
+func (e *erfDiffOp) f64Kernel(shape tensor.Shape, inputData,
 	gradData tensor.Tensor) *tensor.Dense {
 	scale := 2 / math.Sqrt(math.Pi)
 	x := inputData.Data().([]float64)
@@ -206,7 +206,7 @@ func (e *ErfDiffOp) f64Kernel(shape tensor.Shape, inputData,
 	return ret
 }
 
-func (e *ErfDiffOp) f32Kernel(shape tensor.Shape, inputData,
+func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	gradData tensor.Tensor) *tensor.Dense {
 	scale := float32(2.0 / math.Sqrt(math.Pi))
 	x := inputData.Data().([]float32)

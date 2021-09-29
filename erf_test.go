@@ -1,16 +1,15 @@
-package gop_test
+package gop
 
 import (
 	"math/rand"
 	"testing"
 
-	"github.com/samuelfneumann/gop"
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
 
 func TestErf(t *testing.T) {
-	erf := gop.NewErfOp()
+	erf := newErfOp()
 
 	// Create input tensors
 	inBackings := [][]float64{
@@ -97,7 +96,7 @@ func TestErf(t *testing.T) {
 }
 
 func TestErfDiff(t *testing.T) {
-	erfDiff := gop.ErfDiffOp{}
+	erfDiff := erfDiffOp{}
 
 	grads := []*tensor.Dense{
 		tensor.NewDense(
