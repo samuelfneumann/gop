@@ -11,6 +11,8 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TODO: Add tests fro F64 and F32
+
 // erfOp is the error function
 type erfOp struct{}
 
@@ -70,7 +72,7 @@ func (e *erfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 }
 
 // WriteHash writes the hash of the receiver to a hash struct
-func (e *erfOp) WriteHash(h hash.Hash) { fmt.Fprintf(h, "Erf()") }
+func (e *erfOp) WriteHash(h hash.Hash) { fmt.Fprintf(h, e.String()) }
 
 // Hashcode returns the hash code of the receiver
 func (e *erfOp) Hashcode() uint32 { return SimpleHash(e) }
