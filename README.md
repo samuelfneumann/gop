@@ -1,5 +1,5 @@
-# op
-Extended Gorgonia Operations
+# gop
+Extended G(orgonia) Op(erations)
 
 ## ToDo:
 * [ ] Erf

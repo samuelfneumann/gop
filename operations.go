@@ -1,4 +1,4 @@
-package op
+package gop
 
 import G "gorgonia.org/gorgonia"
 
