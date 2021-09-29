@@ -1,6 +1,7 @@
 package gop
 
 import (
+	"math"
 	"math/rand"
 	"testing"
 
@@ -8,56 +9,41 @@ import (
 	"gorgonia.org/tensor"
 )
 
+func prod(ints ...int) int {
+	i := 1
+	for _, elem := range ints {
+		i *= elem
+	}
+	return i
+}
+
 func TestErf(t *testing.T) {
 	erf := newErfOp()
 
-	// Create input tensors
-	inBackings := [][]float64{
-		{
-			-2, 0, 1, 2,
-		},
-		{
-			-4, -3, -0.1, -0.01, 0.01, 0.1, 3, 4,
-		},
-	}
-
-	// Create the target tensors
-	outBackings := [][]float64{
-		{
-			-0.9953222650189527,
-			0.0,
-			0.8427007929497149,
-			0.9953222650189527,
-		},
-		{
-			-0.9999999845827421,
-			-0.9999779095030014,
-			-0.1124629160182849,
-			-0.011283415555849618,
-			0.011283415555849618,
-			0.1124629160182849,
-			0.9999779095030014,
-			0.9999999845827421,
-		},
-	}
-
-	// Shapes for each of the input/output/target tensors
-	shapes := []tensor.Shape{
+	shapes := [][]int{
 		{2, 2},
 		{2, 2, 2},
+		{2, 3, 5},
+		{4, 3, 2, 1},
+		{1},
 	}
-
-	for i := range inBackings {
+	for i := 0; i < len(shapes); i++ {
+		inBacking := make([]float64, prod(shapes[i]...))
+		outBacking := make([]float64, len(inBacking))
+		for i := range outBacking {
+			inBacking[i] = rand.Float64()
+			outBacking[i] = math.Erf(inBacking[i])
+		}
 		in := tensor.NewDense(
 			tensor.Float64,
 			shapes[i],
-			tensor.WithBacking(inBackings[i]),
+			tensor.WithBacking(inBacking),
 		)
 
 		out := tensor.NewDense(
 			tensor.Float64,
 			shapes[i],
-			tensor.WithBacking(outBackings[i]),
+			tensor.WithBacking(outBacking),
 		)
 
 		// Run the operation
@@ -95,99 +81,71 @@ func TestErf(t *testing.T) {
 	}
 }
 
+func erfGrad(x float64) float64 {
+	return (2 / math.Sqrt(math.Pi)) * math.Exp(-math.Pow(x, 2))
+}
+
 func TestErfDiff(t *testing.T) {
 	erfDiff := erfDiffOp{}
 
-	grads := []*tensor.Dense{
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{1, 1, 1, 1}),
-		),
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{0.1, 0.1, 0.1, 0.1}),
-		),
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2, 2},
-			tensor.WithBacking([]float64{1, 1, 1, 1, 1, 1, 1, 1}),
-		),
+	shapes := [][]int{
+		{2, 2},
+		{2, 2, 2},
+		{2, 3, 5},
+		{4, 3, 2, 1},
+		{1},
 	}
 
-	ins := []*tensor.Dense{
-		tensor.NewDense(
+	for i := 0; i < len(shapes); i++ {
+		inBacking := make([]float64, prod(shapes[i]...))
+		outBacking := make([]float64, len(inBacking))
+		gradBacking := make([]float64, len(inBacking))
+		for i := range outBacking {
+			inBacking[i] = rand.Float64()
+			gradBacking[i] = 0.1
+			outBacking[i] = erfGrad(inBacking[i]) * gradBacking[i]
+		}
+		in := tensor.NewDense(
 			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{-1, 0, 1, 2}),
-		),
-		tensor.NewDense(
+			shapes[i],
+			tensor.WithBacking(inBacking),
+		)
+		out := tensor.NewDense(
 			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{-1, 0, 1, 2}),
-		),
-		tensor.NewDense(
+			shapes[i],
+			tensor.WithBacking(outBacking),
+		)
+		grad := tensor.NewDense(
 			tensor.Float64,
-			[]int{2, 2, 2},
-			tensor.WithBacking([]float64{-0.01, -0.1, 0.0, 0.1, 0.01, 0.07,
-				0.008, 0.91}),
-		),
-	}
+			shapes[i],
+			tensor.WithBacking(gradBacking),
+		)
 
-	targets := []*tensor.Dense{
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{
-				0.4151074974205947,
-				1.1283791670955126,
-				0.4151074974205947,
-				0.020666985354092053,
-			}),
-		),
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2},
-			tensor.WithBacking([]float64{
-				0.041510749742059476,
-				0.11283791670955126,
-				0.041510749742059476,
-				0.0020666985354092053,
-			}),
-		),
-		tensor.NewDense(
-			tensor.Float64,
-			[]int{2, 2, 2},
-			tensor.WithBacking([]float64{
-				1.1282663348205109,
-				1.1171516067889369,
-				1.1283791670955126,
-				1.1171516067889369,
-				1.1282663348205109,
-				1.122863633270276,
-				1.1283069531396897,
-				0.4929646741550179,
-			}),
-		),
-	}
-
-	for i := range targets {
-		out, err := erfDiff.Do(ins[i], grads[i])
+		// Run the operation
+		v, err := erfDiff.Do(in, grad)
 		if err != nil {
-			t.Errorf("could not compute gradient: %v", err)
+			t.Error(err)
 		}
 
-		// Ensure output is expected, input tensor modified, and
-		// output shape is not changed
-		if !out.(*tensor.Dense).Eq(targets[i]) {
-			t.Errorf("expected: \n%v \nreceived: \n%v", targets[i], out)
-		} else if out.(*tensor.Dense).Eq(ins[i]) {
+		// Ensure output is correct to within tolerance
+		const tolerance float64 = 0.000001
+		for i := range out.Data().([]float64) {
+			diff := math.Abs(out.Data().([]float64)[i] -
+				v.Data().([]float64)[i])
+
+			if diff > tolerance {
+				t.Errorf("expected: %v \nreceived: %v \nat index %d",
+					out.Data().([]float64)[i], v.Data().([]float64)[i], i)
+			}
+		}
+
+		// Ensure shape is correct and input not modified
+		if v.(*tensor.Dense).Eq(in) {
 			t.Error("erfDiff should not modify input value, but input " +
 				"modified")
-		} else if !out.(*tensor.Dense).Shape().Eq(ins[i].Shape()) {
-			t.Errorf("erf should not modify shapes (%v modified to %v)",
-				ins[i].Shape(), out.(*tensor.Dense).Shape())
+		} else if !v.(*tensor.Dense).Shape().Eq(shapes[i]) {
+			t.Errorf("erfDiff should not modify shapes (%v modified to %v)",
+				shapes[i], v.(*tensor.Dense).Shape())
 		}
 	}
 

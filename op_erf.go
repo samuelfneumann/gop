@@ -106,7 +106,11 @@ func (e *erfOp) checkInputs(inputs ...G.Value) error {
 
 	_, okF64 := inputs[0].(*G.F64)
 	_, okF32 := inputs[0].(*G.F32)
-	_, okTensor := inputs[0].(tensor.Tensor)
+	t, okTensor := inputs[0].(tensor.Tensor)
+
+	if okTensor && len(t.Shape()) <= 0 {
+		return fmt.Errorf("tensor does not have any shape")
+	}
 
 	if !(okF64 || okF32 || okTensor) {
 		return fmt.Errorf("expected input to be a tensor, got %T", inputs[0])
@@ -226,10 +230,6 @@ func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	return ret
 }
 
-// ================================================================
-// ================================================================
-// ================================================================
-// ================================================================
 // f32Erf computes the erf on a float32 input value
 func f32Erf(val float32) float32 {
 	return float32(math.Erf(float64(val)))
@@ -254,11 +254,6 @@ func computeErf(value G.Value) (G.Value, error) {
 		}
 
 		iter := v.Iterator()
-		_, err := iter.Start()
-		if err != nil {
-			return nil, fmt.Errorf("do: could not start iterator on tensor")
-		}
-
 		// Go through each element of the tensor and erf it in place
 		for !iter.Done() {
 			// Get the coordinates of the element to erf
@@ -275,11 +270,7 @@ func computeErf(value G.Value) (G.Value, error) {
 			if err != nil {
 				return nil, fmt.Errorf("do: could not step iterator")
 			}
-
 		}
-		// Erf the last element of the tensor
-		coords := iter.Coord()
-		erfTensorAt(v, coords)
 
 	default:
 		return nil, fmt.Errorf("do: unable to compute erf on type %T", v)
@@ -302,6 +293,8 @@ func erfTensorAt(v tensor.Tensor, coords []int) error {
 		val = math.Erf(val.(float64))
 	} else if v.Dtype() == tensor.Float32 {
 		val = f32Erf(val.(float32))
+	} else {
+		return fmt.Errorf("erfTensorAt: invalid data type %T", v)
 	}
 
 	// Set the value
