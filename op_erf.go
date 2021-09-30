@@ -60,8 +60,8 @@ func (e *erfOp) ReturnsPtr() bool { return true }
 func (e *erfOp) CallsExtern() bool { return false }
 
 // OverwritesInput returns the index of the input that this op
-// will overwrite - index 0
-func (e *erfOp) OverwritesInput() int { return 0 }
+// will overwrite
+func (e *erfOp) OverwritesInput() int { return -1 }
 
 // String returns the string representation of the struct
 func (e *erfOp) String() string {
@@ -175,7 +175,7 @@ func (e *erfDiffOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
 	a := hm.TypeVariable('a')
-	return hm.NewFnType(a, a)
+	return hm.NewFnType(a, a, a)
 }
 
 // OverwritesInput returns the index of the input that this op
@@ -291,18 +291,22 @@ func computeErf(value G.Value) (G.Value, error) {
 	// Compute erf based on type, overwriting the input
 	switch v := value.(type) {
 	case *G.F64:
-		*v = *G.NewF64(math.Erf(float64(*v)))
-		return v, nil
+		return G.NewF64(math.Erf(float64(*v))), nil
 
 	case *G.F32:
-		val := float32(math.Erf(float64(*v)))
-		*v = *G.NewF32(val)
-		return v, nil
+		val := math32.Erf(float32(*v))
+		return G.NewF32(val), nil
 
 	case tensor.Tensor:
 		if len(v.Shape()) == 0 {
 			return nil, fmt.Errorf("do: cannot compute erf on empty tensor")
 		}
+
+		// Create the new output tensor
+		out := tensor.NewDense(
+			v.Dtype(),
+			v.Shape(),
+		)
 
 		iter := v.Iterator()
 		// Go through each element of the tensor and erf it in place
@@ -311,7 +315,7 @@ func computeErf(value G.Value) (G.Value, error) {
 			coords := iter.Coord()
 
 			// Erf the element in place
-			err := erfTensorAt(v, coords)
+			err := erfTensorAt(v, out, coords)
 			if err != nil {
 				return nil, fmt.Errorf("do: %v", err)
 			}
@@ -323,33 +327,33 @@ func computeErf(value G.Value) (G.Value, error) {
 			}
 		}
 
+		return out, nil
+
 	default:
 		return nil, fmt.Errorf("do: unable to compute erf on type %T", v)
 	}
-
-	return value, nil
 }
 
 // erfTensorAt computes in-place the erf of tensor v at coords
-func erfTensorAt(v tensor.Tensor, coords []int) error {
+func erfTensorAt(in tensor.Tensor, out tensor.Tensor, coords []int) error {
 	// Get the value at the next coordinates
-	val, err := v.At(coords...)
+	val, err := in.At(coords...)
 	if err != nil {
 		return fmt.Errorf("erfTensorAt: could not access element "+
 			"at %v", coords)
 	}
 
 	// Erf the value
-	if v.Dtype() == tensor.Float64 {
+	if in.Dtype() == tensor.Float64 {
 		val = math.Erf(val.(float64))
-	} else if v.Dtype() == tensor.Float32 {
+	} else if in.Dtype() == tensor.Float32 {
 		val = math32.Erf(val.(float32))
 	} else {
-		return fmt.Errorf("erfTensorAt: invalid data type %T", v)
+		return fmt.Errorf("erfTensorAt: invalid data type %T", in)
 	}
 
 	// Set the value
-	err = v.SetAt(val, coords...)
+	err = out.SetAt(val, coords...)
 	if err != nil {
 		return fmt.Errorf("erfTensorAt: could not set element "+
 			"at %v", coords)
