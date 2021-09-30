@@ -14,3 +14,5 @@ operations, such as `Argsort` are not differentiable anyway.
 ## ToDo
 
 * [ ] Argsort
+
+* [ ] Clamp using tensor.Clamp

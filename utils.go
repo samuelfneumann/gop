@@ -7,7 +7,8 @@ import (
 	"gorgonia.org/gorgonia"
 )
 
-type aritable interface {
+// ariter is anything that can return its arity
+type ariter interface {
 	Arity() int
 }
 
@@ -19,7 +20,7 @@ func SimpleHash(op gorgonia.Op) uint32 {
 	return h.Sum32()
 }
 
-func CheckArity(op aritable, inputs int) error {
+func CheckArity(op ariter, inputs int) error {
 	if inputs != op.Arity() && op.Arity() >= 0 {
 		return fmt.Errorf("%v has an arity of %d. Got %d instead", op,
 			op.Arity(), inputs)
