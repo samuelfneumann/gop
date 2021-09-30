@@ -5,16 +5,74 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/chewxy/math32"
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
 
-func prod(ints ...int) int {
-	i := 1
-	for _, elem := range ints {
-		i *= elem
+func TestErfFloat64(t *testing.T) {
+	erfDiff := erfDiffOp{}
+	erf := newErfOp()
+	const tolerance float64 = 0.0000001
+
+	tests := 10
+	for i := 0; i < tests; i++ {
+		in := rand.Float64()
+		out := math.Erf(in)
+		outGrad := (2 / math.Sqrt(math.Pi)) * math.Exp(-math.Pow(in, 2))
+		preGrad := rand.Float64()
+
+		v, err := erf.Do(G.NewF64(in))
+		if err != nil {
+			t.Error(err)
+		}
+
+		if float64(*(v.(*G.F64))) != out {
+			t.Errorf("incorret erf: expected %v received %v", out, v)
+		}
+
+		v, err = erfDiff.Do(G.NewF64(in), G.NewF64(preGrad))
+		if err != nil {
+			t.Error(err)
+		}
+
+		if math.Abs(float64(*(v.(*G.F64)))-(preGrad*outGrad)) > tolerance {
+			t.Errorf("incorret erfDiff: expected %v received %v", outGrad, v)
+		}
 	}
-	return i
+}
+
+func TestErfFloat32(t *testing.T) {
+	erfDiff := erfDiffOp{}
+	erf := newErfOp()
+	const tolerance float32 = 0.0000001
+
+	tests := 10
+	for i := 0; i < tests; i++ {
+		in := rand.Float32()
+		out := math32.Erf(in)
+		outGrad := (2 / math32.Sqrt(math32.Pi)) *
+			math32.Exp(-math32.Pow(in, 2))
+		preGrad := rand.Float32()
+
+		v, err := erf.Do(G.NewF32(in))
+		if err != nil {
+			t.Error(err)
+		}
+
+		if float32(*(v.(*G.F32))) != out {
+			t.Errorf("incorret erf: expected %v received %v", out, v)
+		}
+
+		v, err = erfDiff.Do(G.NewF32(in), G.NewF32(preGrad))
+		if err != nil {
+			t.Error(err)
+		}
+
+		if math32.Abs(float32(*(v.(*G.F32)))-(preGrad*outGrad)) > tolerance {
+			t.Errorf("incorret erfDiff: expected %v received %v", outGrad, v)
+		}
+	}
 }
 
 func TestErf(t *testing.T) {
@@ -28,7 +86,7 @@ func TestErf(t *testing.T) {
 		{1},
 	}
 	for i := 0; i < len(shapes); i++ {
-		inBacking := make([]float64, prod(shapes[i]...))
+		inBacking := make([]float64, tensor.ProdInts(shapes[i]))
 		outBacking := make([]float64, len(inBacking))
 		for i := range outBacking {
 			inBacking[i] = rand.Float64()
@@ -97,7 +155,7 @@ func TestErfDiff(t *testing.T) {
 	}
 
 	for i := 0; i < len(shapes); i++ {
-		inBacking := make([]float64, prod(shapes[i]...))
+		inBacking := make([]float64, tensor.ProdInts(shapes[i]))
 		outBacking := make([]float64, len(inBacking))
 		gradBacking := make([]float64, len(inBacking))
 		for i := range outBacking {
