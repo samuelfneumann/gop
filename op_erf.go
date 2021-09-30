@@ -11,6 +11,8 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// ToDo: figure out the type system and fix Type() methos
+
 // erfOp is the error function
 type erfOp struct{}
 

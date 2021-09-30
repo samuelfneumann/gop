@@ -2,6 +2,8 @@
 package gop
 
 import (
+	"fmt"
+
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
@@ -10,6 +12,34 @@ func Erf(x *G.Node) (*G.Node, error) {
 	op := newErfOp()
 
 	return G.ApplyOp(op, x)
+}
+
+func Erfc(x *G.Node) (*G.Node, error) {
+	op := newErfOp()
+
+	retVal, err := G.ApplyOp(op, x)
+	if err != nil {
+		return nil, fmt.Errorf("erfc: %v", err)
+	}
+
+	var one *G.Node
+	switch x.Dtype() {
+	case G.Float64:
+		one = G.NewScalar(
+			x.Graph(),
+			G.Float64,
+			G.WithValue(1.0),
+		)
+
+	case G.Float32:
+		one = G.NewScalar(
+			x.Graph(),
+			G.Float32,
+			G.WithValue(float32(1.0)),
+		)
+	}
+
+	return G.Sub(one, retVal)
 }
 
 // Clip performs an element-wise clipping of all values in a node

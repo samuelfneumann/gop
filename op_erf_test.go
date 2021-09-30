@@ -10,6 +10,61 @@ import (
 	"gorgonia.org/tensor"
 )
 
+func TestErfc(t *testing.T) {
+	const tolerance float64 = 0.0001
+	const maxDims int = 5
+	const minDims int = 2
+	const maxDimSize int = 10
+
+	shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+	for i := range shape {
+		shape[i] = 1 + rand.Intn(maxDimSize-1) // Avoid dimension size 0
+	}
+
+	backing := make([]float64, tensor.ProdInts(shape))
+	out := make([]float64, tensor.ProdInts(shape))
+	grad := make([]float64, tensor.ProdInts(shape))
+	for i := range backing {
+		backing[i] = (rand.Float64() - 0.5) * 2.0
+		out[i] = math.Erfc(backing[i])
+		grad[i] = -(2 / math.Sqrt(math.Pi)) *
+			math.Exp(-math.Pow(backing[i], 2))
+	}
+
+	g := G.NewGraph()
+	inTensor := tensor.NewDense(
+		tensor.Float64,
+		shape,
+		tensor.WithBacking(backing),
+	)
+
+	in := G.NewTensor(
+		g,
+		tensor.Float64,
+		len(shape),
+		G.WithValue(inTensor),
+	)
+	computedNode, err := Erfc(in)
+	if err != nil {
+		t.Error(err)
+	}
+	var computed G.Value
+	G.Read(computedNode, &computed)
+
+	vm := G.NewTapeMachine(g)
+	vm.RunAll()
+	vm.Reset()
+
+	output := computed.Data().([]float64)
+	for i := 0; i < len(out); i++ {
+		if math.Abs(out[i]-output[i]) > tolerance {
+			t.Errorf("incorrect value\nexpected: %v \nreceived:%v",
+				out[i], output[i])
+		}
+	}
+
+}
+
 func TestErfFloat64(t *testing.T) {
 	erfDiff := erfDiffOp{}
 	erf := newErfOp()
