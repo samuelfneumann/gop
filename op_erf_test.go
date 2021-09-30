@@ -10,7 +10,7 @@ import (
 	"gorgonia.org/tensor"
 )
 
-func TestErf_grad(t *testing.T) {
+func TestErf_graph(t *testing.T) {
 	const tolerance float64 = 0.0001
 	const maxDims int = 5
 	const minDims int = 2
@@ -87,7 +87,7 @@ func TestErf_grad(t *testing.T) {
 	}
 }
 
-func TestErfc(t *testing.T) {
+func TestErfc_graph(t *testing.T) {
 	const tolerance float64 = 0.0001
 	const maxDims int = 5
 	const minDims int = 2
