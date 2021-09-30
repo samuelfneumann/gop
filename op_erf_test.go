@@ -28,8 +28,7 @@ func TestErf_graph(t *testing.T) {
 		z := (rand.Float64() - 0.5) * 2.0
 		backing[i] = z
 		out[i] = math.Erf(backing[i])
-		grad[i] = ((2 / math.Sqrt(math.Pi)) *
-			math.Exp(-math.Pow(z, 2))) / float64(tensor.ProdInts(shape))
+		grad[i] = erfGrad(z) / float64(tensor.ProdInts(shape))
 	}
 
 	g := G.NewGraph()
@@ -104,8 +103,7 @@ func TestErfc_graph(t *testing.T) {
 	for i := range backing {
 		backing[i] = (rand.Float64() - 0.5) * 2.0
 		out[i] = math.Erfc(backing[i])
-		grad[i] = -(2 / math.Sqrt(math.Pi)) *
-			math.Exp(-math.Pow(backing[i], 2)) / float64(tensor.ProdInts(shape))
+		grad[i] = -erfGrad(backing[i]) / float64(tensor.ProdInts(shape))
 	}
 
 	g := G.NewGraph()
