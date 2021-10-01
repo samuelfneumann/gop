@@ -8,12 +8,21 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// Argsort returns the indices that would sort x along axis
+func Argsort(x *G.Node, axis int) (*G.Node, error) {
+	op := newArgsortOp(axis)
+
+	return G.ApplyOp(op, x)
+}
+
+// Erf computes the element-wise error function
 func Erf(x *G.Node) (*G.Node, error) {
 	op := newErfOp()
 
 	return G.ApplyOp(op, x)
 }
 
+// Erfc computes the element-wise complementary error function
 func Erfc(x *G.Node) (*G.Node, error) {
 	op := newErfOp()
 

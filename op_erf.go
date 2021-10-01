@@ -123,8 +123,8 @@ func (e *erfOp) checkInputs(inputs ...G.Value) error {
 	_, okF32 := inputs[0].(*G.F32)
 	t, okTensor := inputs[0].(tensor.Tensor)
 
-	if okTensor && len(t.Shape()) <= 0 {
-		return fmt.Errorf("tensor does not have any shape")
+	if okTensor && (len(t.Shape()) <= 0 || t.Size() == 0) {
+		return fmt.Errorf("tensor does not have any elements")
 	}
 
 	if !(okF64 || okF32 || okTensor) {
@@ -190,10 +190,13 @@ func (e *erfDiffOp) checkInputs(inputs ...G.Value) error {
 
 	_, okF64 := inputs[0].(*G.F64)
 	_, okF32 := inputs[0].(*G.F32)
-	_, okTensor := inputs[0].(tensor.Tensor)
+	t, okTensor := inputs[0].(tensor.Tensor)
 	var okGrad bool
 	if okTensor {
 		_, okGrad = inputs[1].(tensor.Tensor)
+		if len(t.Shape()) <= 0 || t.Size() == 0 {
+			return fmt.Errorf("tensor does not have any elements")
+		}
 	} else if okF64 {
 		_, okGrad = inputs[1].(*G.F64)
 	} else if okF32 {
