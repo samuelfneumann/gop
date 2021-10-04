@@ -47,7 +47,7 @@ func (e *erfOp) Do(values ...G.Value) (G.Value, error) {
 
 	value := values[0]
 
-	// Compute erf based on type, overwriting the input
+	// Compute erf based on type
 	return computeErf(value)
 }
 
@@ -291,7 +291,7 @@ func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
 
 // computeErf computes the element-wise erf on a value
 func computeErf(value G.Value) (G.Value, error) {
-	// Compute erf based on type, overwriting the input
+	// Compute erf based on type
 	switch v := value.(type) {
 	case *G.F64:
 		return G.NewF64(math.Erf(float64(*v))), nil
