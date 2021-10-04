@@ -3,6 +3,7 @@ package gop
 import (
 	"fmt"
 	"hash/fnv"
+	"math/rand"
 
 	"gorgonia.org/gorgonia"
 )
@@ -26,4 +27,24 @@ func CheckArity(op ariter, inputs int) error {
 			op.Arity(), inputs)
 	}
 	return nil
+}
+
+// randF64 returns a random float64 slice of length size
+func randF64(size int, min, max float64) []float64 {
+	slice := make([]float64, size)
+	for i := range slice {
+		slice[i] = min + rand.Float64()*(max-min)
+	}
+
+	return slice
+}
+
+// randInt returns a random int slice of length size
+func randInt(size int, min, max int) []int {
+	slice := make([]int, size)
+	for i := range slice {
+		slice[i] = min + rand.Intn(max-min)
+	}
+
+	return slice
 }

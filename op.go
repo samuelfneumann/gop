@@ -8,6 +8,15 @@ import (
 	"gorgonia.org/tensor"
 )
 
+func Clamp(x *G.Node, min, max float64) (*G.Node, error) {
+	op, err := newClamp(min, max)
+	if err != nil {
+		return nil, err
+	}
+
+	return G.ApplyOp(op, x)
+}
+
 // Argsort returns the indices that would sort x along axis
 func Argsort(x *G.Node, axis int) (*G.Node, error) {
 	op := newArgsortOp(axis)
