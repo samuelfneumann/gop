@@ -8,8 +8,26 @@ import (
 	"gorgonia.org/tensor"
 )
 
-func Clamp(x *G.Node, min, max float64) (*G.Node, error) {
-	op, err := newClamp(min, max)
+// Clamp clamps a node's values to be between min and max. This function
+// can clamp a tensor storing float64's, float32's, or any integer
+// type, but is only differentiable if the tensor stores floating point
+// types. If clamping a tensor of an integer type, the returned tensor
+// will have type tensor.Int, regardless of the input tensor integer
+// type. If passGradient is true, then the gradient is passed through
+// the clamping operation:
+//
+//         { 1 if min <= x <= max
+// grad =  {
+//		   { 1 otherwise
+//
+// Otherwise, the regular clamp gradient is used:
+//
+//         { 1 if min <= x <= max
+// grad =  {
+//		   { 0 otherwise
+func Clamp(x *G.Node, min, max interface{}, passGradient bool) (*G.Node,
+	error) {
+	op, err := newClamp(min, max, passGradient)
 	if err != nil {
 		return nil, err
 	}

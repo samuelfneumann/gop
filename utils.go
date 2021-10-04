@@ -39,6 +39,16 @@ func randF64(size int, min, max float64) []float64 {
 	return slice
 }
 
+// randF32 returns a random float32 slice of length size
+func randF32(size int, min, max float32) []float32 {
+	slice := make([]float32, size)
+	for i := range slice {
+		slice[i] = min + float32(rand.Float64())*(max-min)
+	}
+
+	return slice
+}
+
 // randInt returns a random int slice of length size
 func randInt(size int, min, max int) []int {
 	slice := make([]int, size)

@@ -5,13 +5,13 @@ go 1.17
 require (
 	github.com/chewxy/hm v1.0.0
 	github.com/chewxy/math32 v1.0.8
-	github.com/samuelfneumann/top v0.0.0-20211001142805-ab2b60d856de
+	github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39
 	gorgonia.org/gorgonia v0.9.17
 	gorgonia.org/tensor v0.9.21
 )
 
 require (
-	github.com/apache/arrow/go/arrow v0.0.0-20211001171314-b5814b6bcc6a // indirect
+	github.com/apache/arrow/go/arrow v0.0.0-20211004175324-73f938694438 // indirect
 	github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
