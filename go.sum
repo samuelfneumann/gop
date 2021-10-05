@@ -121,6 +121,8 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/ruudk/golang-pdf417 v0.0.0-20181029194003-1af4ab5afa58/go.mod h1:6lfFZQK844Gfx8o5WFuvpxWRwnSoipWe/p622j1v06w=
+github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563 h1:dcxEFWICI5scR6pVE/WKtrxCTVeCokDT17uOSAryz7A=
+github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563/go.mod h1:GgP2+cpUDl/O4hCzFMwEueWNYIAaypjgKMk7zQxw/7g=
 github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39 h1:AVVQkzuF7V2hdMbibUS6u0q4Mz1OOR287/lXkMKxZUA=
 github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39/go.mod h1:Iyt4zqsUmWH49DpOpuvyiaMf/LdUg0kuEUmGY5LU4y4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/chewxy/hm v1.0.0
 	github.com/chewxy/math32 v1.0.8
+	github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563
 	github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39
 	gorgonia.org/gorgonia v0.9.17
 	gorgonia.org/tensor v0.9.21
