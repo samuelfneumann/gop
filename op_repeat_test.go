@@ -1,6 +1,7 @@
 package gop
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -10,16 +11,16 @@ import (
 )
 
 func TestRepeat(t *testing.T) {
-	const numTests int = 15 // The number of random tests to run
-	const maxRepeats int = 10
+	const numTests int = 1 // The number of random tests to run
+	const maxRepeats int = 3
 
 	// Randomly generated input has number of dimensions between dimMin
 	// and dimMax. Each dimension of the randomly generated input has
 	// between sizeMin and sizeMax elements.
 	const sizeMin int = 1
-	const sizeMax int = 10
+	const sizeMax int = 3
 	const dimMin int = 1
-	const dimMax int = 4
+	const dimMax int = 2
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < numTests; i++ {
@@ -41,6 +42,7 @@ func TestRepeat(t *testing.T) {
 			size,
 			tensor.WithBacking(inBacking),
 		)
+		fmt.Println("In Tensor:", inTensor)
 
 		// Construct the target/correct gradient
 		repeatTarget, err := tensor.Repeat(inTensor, axis, repeats)
@@ -65,6 +67,18 @@ func TestRepeat(t *testing.T) {
 		var cVal G.Value
 		G.Read(c, &cVal)
 
+		// Construct loss + gradient
+		loss := G.Must(G.Mean(c))
+		grad, err := G.Grad(loss, in)
+		if err != nil {
+			t.Error(err)
+		}
+		if len(grad) != 1 {
+			t.Errorf("expected 1 gradient node, received %v", len(grad))
+		}
+		var gradVal G.Value
+		G.Read(grad[0], &gradVal)
+
 		// Run the graph
 		vm := G.NewTapeMachine(g)
 		err = vm.RunAll()
@@ -76,6 +90,10 @@ func TestRepeat(t *testing.T) {
 		if !cVal.(tensor.Tensor).Eq(repeatTarget) {
 			t.Errorf("expected: \n%v \nreceived: \n%v\n", repeatTarget, cVal)
 		}
+
+		fmt.Println(in.Value())
+		fmt.Println(cVal)
+		fmt.Println(gradVal)
 
 		vm.Close()
 	}
