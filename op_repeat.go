@@ -9,12 +9,16 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// repeatOp implements the repeat operation. This operation is the
+// same operation as Numpy's repeat operation and PyTorch's
+// repeat_interleave operation. It repeats elements of an array.
 type repeatOp struct {
 	axis    int // Axis along which to repeat
 	dims    int // Number of dimensions in the input node
 	repeats int // Number of times each row is repeated
 }
 
+// newRepeatOp returns a new repeatOp
 func newRepeatOp(axis, dims, repeats int) (*repeatOp, error) {
 	if repeats == 0 {
 		return nil, fmt.Errorf("newRepeatOp: expected repeats to be > 0, "+
@@ -28,10 +32,12 @@ func newRepeatOp(axis, dims, repeats int) (*repeatOp, error) {
 	}, nil
 }
 
+// DiffWRT implements the gorgonia.SDOp interface
 func (r *repeatOp) DiffWRT(inputs int) []bool {
 	return []bool{true}
 }
 
+// SymDiff implements the gorgonia.SDOp interface
 func (r *repeatOp) SymDiff(inputs G.Nodes, output, grad *G.Node) (G.Nodes,
 	error) {
 	err := CheckArity(r, len(inputs))
@@ -47,8 +53,10 @@ func (r *repeatOp) SymDiff(inputs G.Nodes, output, grad *G.Node) (G.Nodes,
 	return nodes, err
 }
 
+// Arity implements the gorgonia.Op interface
 func (r *repeatOp) Arity() int { return 1 }
 
+// Type implements the gorgonia.Op interface
 func (r *repeatOp) Type() hm.Type {
 	tt := G.TensorType{
 		Dims: r.dims,
@@ -58,20 +66,27 @@ func (r *repeatOp) Type() hm.Type {
 	return hm.NewFnType(tt, tt)
 }
 
+// OverwritesInput implements the gorgonia.Op interface
 func (r *repeatOp) OverwritesInput() int { return -1 }
 
+// ReturnsPtr implements the gorgonia.Op interface
 func (r *repeatOp) ReturnsPtr() bool { return true }
 
+// CallsExtern implements the gorgonia.Op interface
 func (r *repeatOp) CallsExtern() bool { return false }
 
+// String implements the fmt.Stringer interface
 func (r *repeatOp) String() string {
 	return fmt.Sprintf("Repeat{axis=%v, repeats=%v}()", r.axis, r.repeats)
 }
 
+// WriteHash implements the gorgonia.Op interface
 func (r *repeatOp) WriteHash(h hash.Hash) { fmt.Fprint(h, r.String()) }
 
+// Hashcode implements the gorgonia.Op interface
 func (r *repeatOp) Hashcode() uint32 { return SimpleHash(r) }
 
+// InferShape implements the gorgonia.Op interface
 func (r *repeatOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
 	shape := in[0].(tensor.Shape).Clone()
 	shape[r.axis] *= r.repeats
@@ -79,6 +94,7 @@ func (r *repeatOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
 	return shape, nil
 }
 
+// Do implements the gorgonia.Op interface
 func (r *repeatOp) Do(inputs ...G.Value) (G.Value, error) {
 	if err := r.checkInputs(inputs...); err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -89,6 +105,8 @@ func (r *repeatOp) Do(inputs ...G.Value) (G.Value, error) {
 	return tensor.Repeat(input, r.axis, r.repeats)
 }
 
+// checkInputs returns an error if inputs is not a valid input to the
+// receiver
 func (r *repeatOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(r, len(inputs)); err != nil {
 		return err
@@ -109,12 +127,15 @@ func (r *repeatOp) checkInputs(inputs ...G.Value) error {
 	return nil
 }
 
+// repeatDiffOp is the derivative of the repeat operation
 type repeatDiffOp struct {
 	op *repeatOp
 }
 
+// Arity implements the gorgonia.Op interface
 func (r *repeatDiffOp) Arity() int { return 2 }
 
+// Type implements the gorgonia.Op interface
 func (r *repeatDiffOp) Type() hm.Type {
 	tt := G.TensorType{
 		Dims: r.op.dims,
@@ -124,21 +145,28 @@ func (r *repeatDiffOp) Type() hm.Type {
 	return hm.NewFnType(tt, tt, tt)
 }
 
+// OverwritesInput implements the gorgonia.Op interface
 func (r *repeatDiffOp) OverwritesInput() int { return -1 }
 
+// ReturnsPtr implements the gorgonia.Op interface
 func (r *repeatDiffOp) ReturnsPtr() bool { return true }
 
+// CallsExtern implements the gorgonia.Op interface
 func (r *repeatDiffOp) CallsExtern() bool { return false }
 
+// String implements the gorgonia.Op interface
 func (r *repeatDiffOp) String() string {
 	return fmt.Sprintf("RepeatDiff{axis=%v, repeats=%v}()", r.op.axis,
 		r.op.repeats)
 }
 
+// WriteHash implements the gorgonia.Op interface
 func (r *repeatDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, r.String()) }
 
+// Hashcode implements the gorgonia.Op interface
 func (r *repeatDiffOp) Hashcode() uint32 { return SimpleHash(r) }
 
+// InferShape implements the gorgonia.Op interface
 func (r *repeatDiffOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
 	shape := in[0].(tensor.Shape).Clone()
 	shape[r.op.axis] /= r.op.repeats
@@ -146,6 +174,7 @@ func (r *repeatDiffOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
 	return shape, nil
 }
 
+// Do implements the gorgonia.Op interface
 func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	if err := r.checkInputs(inputs...); err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -192,6 +221,8 @@ func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	return outRows[0], nil
 }
 
+// checkInputs returns an error if inputs is not a valid input to the
+// receiver
 func (r *repeatDiffOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(r, len(inputs)); err != nil {
 		return err

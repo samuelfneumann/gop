@@ -10,18 +10,25 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TestRepeat runs tests to ensure the forward and backward pass of
+// Repeat act as expected. The tests use completely random data.
 func TestRepeat(t *testing.T) {
 	const numTests int = 15 // The number of random tests to run
-	const maxRepeats int = 10
-	const threshold float64 = 0.00001 // Threshold to determine floats equal
+
+	// The maximum number of times an axis can be repeated in a test
+	const maxRepeats int = 32
+
+	// Threshold to determine equality of floating point numbers, needed
+	// due to machine precision errors
+	const threshold float64 = 0.00001
 
 	// Randomly generated input has number of dimensions between dimMin
 	// and dimMax. Each dimension of the randomly generated input has
 	// between sizeMin and sizeMax elements.
-	const sizeMin int = 1
-	const sizeMax int = 5
-	const dimMin int = 1
-	const dimMax int = 4
+	const sizeMin int = 1 // Input has min sizeMin rows per dim
+	const sizeMax int = 5 // Input has max sizeMax rows per dim
+	const dimMin int = 1  // Input has more than dimMin dims
+	const dimMax int = 10 // Input has up to dimMax dims
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < numTests; i++ {

@@ -8,6 +8,9 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// Repeat repeats the elements of x along axis repeats times. This
+// function is conceptually similar to Numpy's repeat function and
+// PyTorch's repeat_interleave function.
 func Repeat(x *G.Node, axis, repeats int) (*G.Node, error) {
 	if x.Shape().Dims() == 0 {
 		return nil, fmt.Errorf("repeat: cannot repeat non-tensor node")
@@ -33,15 +36,16 @@ func Repeat(x *G.Node, axis, repeats int) (*G.Node, error) {
 // type. If passGradient is true, then the gradient is passed through
 // the clamping operation:
 //
-//         { 1 if min <= x <= max
-// grad =  {
-//		   { 1 otherwise
+//				⎧ 1 if min <= x <= max
+//		grad =  ⎨
+//				⎩ 1 otherwise
 //
 // Otherwise, the regular clamp gradient is used:
 //
-//         { 1 if min <= x <= max
-// grad =  {
-//		   { 0 otherwise
+//				⎧ 1 if min <= x <= max
+//		grad =  ⎨
+//				⎩ 0 otherwise
+//
 func Clamp(x *G.Node, min, max interface{}, passGradient bool) (*G.Node,
 	error) {
 	op, err := newClampOp(min, max, passGradient)
