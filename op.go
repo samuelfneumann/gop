@@ -79,7 +79,9 @@ func Erfc(x *G.Node) (*G.Node, error) {
 }
 
 // Clip performs an element-wise clipping of all values in a node
-// to be within [max, min]
+// to be within [max, min]. This is similar to the Clamp operation,
+// but is implemented differently. The Clamp operation should be
+// used in place of this one whenever possible.
 func Clip(value *G.Node, min, max float64) (retVal *G.Node, err error) {
 	// Construct clipping nodes
 	var minNode, maxNode *G.Node
