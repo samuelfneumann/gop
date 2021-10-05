@@ -9,12 +9,13 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TestF64Clamp tests the clamp operation on a float64 tensor
 func TestF64Clamp(t *testing.T) {
 	const numTests int = 15     // The number of random tests to run
 	const clipScale float64 = 2 // Legal ranges generated based on clipScale
 	const scale float64 = 5     // Values are clamped based on scale
 
-	// Randomly generated input has number of dimensions betwee dimMin
+	// Randomly generated input has number of dimensions between dimMin
 	// and dimMax. Each dimension of the randomly generated input has
 	// between sizeMin and sizeMax elements.
 	const sizeMin int = 1
@@ -111,6 +112,7 @@ func TestF64Clamp(t *testing.T) {
 	}
 }
 
+// TestF32Clamp tests the clamp operation on a float32 tensor
 func TestF32Clamp(t *testing.T) {
 	const numTests int = 15     // The number of random tests to run
 	const clipScale float32 = 2 // Legal ranges generated based on clipScale
@@ -213,6 +215,7 @@ func TestF32Clamp(t *testing.T) {
 	}
 }
 
+// TestIntClamp tests the clamp operation on an integer tensor
 func TestIntClamp(t *testing.T) {
 	t.Log("cannot take gradient of integer tensor, testing forward pass only")
 

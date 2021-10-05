@@ -11,14 +11,18 @@ import (
 	"github.com/samuelfneumann/top"
 )
 
+// argsortOp is the argsort operation
 type argsortOp struct {
 	axis int
 }
 
+// newArgsortOp returns a new argsortOp
 func newArgsortOp(axis int) *argsortOp { return &argsortOp{axis} }
 
+// Arity implements the gorgonia.Op interface
 func (a *argsortOp) Arity() int { return 1 }
 
+// Type implements the gorgonia.Op interface
 func (a *argsortOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
@@ -30,6 +34,7 @@ func (a *argsortOp) Type() hm.Type {
 	return hm.NewFnType(any, b)
 }
 
+// InferShape implements the gorgonia.Op interface
 func (a *argsortOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	err := CheckArity(a, len(inputs))
 	if err != nil {
@@ -42,20 +47,25 @@ func (a *argsortOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	return inputs[0].(tensor.Shape), nil
 }
 
+// ReturnsPtr implements the gorgonia.Op interface
 func (a *argsortOp) ReturnsPtr() bool { return false }
 
+// CallsExtern implements the gorgonia.Op interface
 func (a *argsortOp) CallsExtern() bool { return false }
 
+// OverwriteInput implements the gorgonia.Op interface
 func (a *argsortOp) OverwritesInput() int { return -1 }
 
+// String implements the fmt.Stringer interface
 func (a *argsortOp) String() string { return "Argsort()" }
 
-// WriteHash writes the hash of the receiver to a hash struct
+// WriteHash implements the gorgonia.Op interface
 func (a *argsortOp) WriteHash(h hash.Hash) { fmt.Fprint(h, a.String()) }
 
-// Hashcode returns the hash code of the receiver
+// Hashcode implements the gorgonia.Op interface
 func (a *argsortOp) Hashcode() uint32 { return SimpleHash(a) }
 
+// Do implements the gorgonia.Op interface
 func (a *argsortOp) Do(values ...G.Value) (G.Value, error) {
 	err := a.checkInputs(values...)
 	if err != nil {
@@ -67,7 +77,7 @@ func (a *argsortOp) Do(values ...G.Value) (G.Value, error) {
 	return top.Argsort(input, a.axis)
 }
 
-// checkInputs returns an error if the input to this Op is invalid
+// checkInputs returns an error if the input to the receiver is invalid
 func (a *argsortOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(a, len(inputs)); err != nil {
 		return err
