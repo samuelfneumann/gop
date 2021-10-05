@@ -40,17 +40,15 @@ Operation Name   |   Differentiable?
 Argsort          | No
 Error Function   | Yes
 Clamp/Clip       | Yes
+Repeat           | Yes
 
 The following is a list of planned operations that will be implemented soon:
 
 Operation Name   |   Differentiable?
 -----------------|-------------------
-Repeat           | Yes
 Gather           | Yes
 
 ## ToDo
-
-* [ ] Repeat - repeats each row n times along some axis
 
 * [ ] RepeatN - repeats row i N_i times along some axis
 

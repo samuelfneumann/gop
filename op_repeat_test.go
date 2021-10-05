@@ -1,7 +1,7 @@
 package gop
 
 import (
-	"fmt"
+	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -11,16 +11,17 @@ import (
 )
 
 func TestRepeat(t *testing.T) {
-	const numTests int = 1 // The number of random tests to run
-	const maxRepeats int = 3
+	const numTests int = 15 // The number of random tests to run
+	const maxRepeats int = 10
+	const threshold float64 = 0.00001 // Threshold to determine floats equal
 
 	// Randomly generated input has number of dimensions between dimMin
 	// and dimMax. Each dimension of the randomly generated input has
 	// between sizeMin and sizeMax elements.
 	const sizeMin int = 1
-	const sizeMax int = 3
+	const sizeMax int = 5
 	const dimMin int = 1
-	const dimMax int = 2
+	const dimMax int = 4
 	rand.Seed(time.Now().UnixNano())
 
 	for i := 0; i < numTests; i++ {
@@ -42,12 +43,17 @@ func TestRepeat(t *testing.T) {
 			size,
 			tensor.WithBacking(inBacking),
 		)
-		fmt.Println("In Tensor:", inTensor)
 
 		// Construct the target/correct gradient
 		repeatTarget, err := tensor.Repeat(inTensor, axis, repeats)
 		if err != nil {
 			t.Error(err)
+		}
+
+		// Construct the gradient target
+		gradTarget := make([]float64, inTensor.Size())
+		for i := range gradTarget {
+			gradTarget[i] = 1.0 / float64(len(gradTarget))
 		}
 
 		// Construct input node to be clamped
@@ -91,10 +97,27 @@ func TestRepeat(t *testing.T) {
 			t.Errorf("expected: \n%v \nreceived: \n%v\n", repeatTarget, cVal)
 		}
 
-		fmt.Println(in.Value())
-		fmt.Println(cVal)
-		fmt.Println(gradVal)
+		gradData, ok := gradVal.Data().([]float64)
+		if !ok {
+			// Gradient has a single value
+			gradData = []float64{gradVal.Data().(float64)}
+		}
+		for i := range gradData {
+			if math.Abs(gradData[i]-gradTarget[i]) > threshold {
+				coords, err := tensor.Itol(i, gradVal.Shape(),
+					gradVal.(*tensor.Dense).Strides())
 
+				if err != nil {
+					t.Errorf("error is computed gradient \nexpected: %v"+
+						"\nreceived: %v \ncoords unknown due to error: %v \n",
+						gradData, gradTarget, err)
+				}
+
+				t.Errorf("error is computed gradient \nexpected: %v"+
+					"\nreceived: %v \nerror at coords:%v \n",
+					gradData, gradTarget, coords)
+			}
+		}
 		vm.Close()
 	}
 }

@@ -157,6 +157,10 @@ func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 		return nil, fmt.Errorf("do: could not infer shape: %v", err)
 	}
 
+	if r.op.repeats == 1 {
+		return grad.Clone().(*tensor.Dense), nil
+	}
+
 	outRows := make([]*tensor.Dense, shape[r.op.axis])
 
 	slices := make([]tensor.Slice, len(shape))
@@ -170,7 +174,12 @@ func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 			return nil, fmt.Errorf("do: could not slice grad: %v", err)
 		}
 
-		outRow, err := slice.(*tensor.Dense).Sum(r.op.axis)
+		var outRow *tensor.Dense
+		if slice.Size() > 1 {
+			outRow, err = slice.(*tensor.Dense).Sum(r.op.axis)
+		} else {
+			outRow = slice.(*tensor.Dense)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("do: could not sum grad: %v", err)
 		}
@@ -178,14 +187,9 @@ func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	}
 
 	if shape[r.op.axis] > 1 {
-		fmt.Println("Grad, repeats", grad, grad.Shape(), r.op.repeats)
-		out, err := outRows[0].Stack(r.op.axis, outRows[1:]...)
-		fmt.Println("OUT", out)
-		return out, err
+		return outRows[0].Stack(r.op.axis, outRows[1:]...)
 	}
-	out, err := outRows[0], nil
-	fmt.Println("SINGLE OUT:", out)
-	return out, err
+	return outRows[0], nil
 }
 
 func (r *repeatDiffOp) checkInputs(inputs ...G.Value) error {
