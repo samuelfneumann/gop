@@ -10,11 +10,12 @@ import (
 )
 
 type repeatOp struct {
-	axis    int
-	repeats int
+	axis    int // Axis along which to repeat
+	dims    int // Number of dimensions in the input node
+	repeats int // Number of times each row is repeated
 }
 
-func newRepeatOp(axis int, repeats int) (*repeatOp, error) {
+func newRepeatOp(axis, dims, repeats int) (*repeatOp, error) {
 	if repeats == 0 {
 		return nil, fmt.Errorf("newRepeatOp: expected repeats to be > 0, "+
 			"got %v", repeats)
@@ -22,6 +23,7 @@ func newRepeatOp(axis int, repeats int) (*repeatOp, error) {
 
 	return &repeatOp{
 		axis:    axis,
+		dims:    dims,
 		repeats: repeats,
 	}, nil
 }
@@ -29,7 +31,12 @@ func newRepeatOp(axis int, repeats int) (*repeatOp, error) {
 func (r *repeatOp) Arity() int { return 1 }
 
 func (r *repeatOp) Type() hm.Type {
-	panic("not implemented")
+	tt := G.TensorType{
+		Dims: r.dims,
+		Of:   hm.TypeVariable('a'),
+	}
+
+	return hm.NewFnType(tt, tt)
 }
 
 func (r *repeatOp) OverwritesInput() int { return -1 }
@@ -47,7 +54,7 @@ func (r *repeatOp) WriteHash(h hash.Hash) { fmt.Fprint(h, r.String()) }
 func (r *repeatOp) Hashcode() uint32 { return SimpleHash(r) }
 
 func (r *repeatOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
-	shape := in[0].(tensor.Shape)
+	shape := in[0].(tensor.Shape).Clone()
 	shape[r.axis] *= r.repeats
 
 	return shape, nil

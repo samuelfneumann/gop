@@ -1,9 +1,9 @@
 # gop: Extended G(orgonia) Op(erations)
 
-This repository adds extended operations to Gorgonia. Although Gorgonia
-is a great tool for `Go` developers, it lacks many of the features I
-need for reinforcement learning research. This `Go` module provides
-those operations.
+This repository adds extended operations to MLPs in Gorgonia.
+Although Gorgonia is a great tool for `Go` developers, it lacks many of
+the features I need for reinforcement learning research. This `Go` module
+provides those operations.
 
 Due to how data is stored in Gorgonia, only symbolic differentiation
 is supported in this module. Automatic differentiation is not supported.

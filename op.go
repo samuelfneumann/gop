@@ -9,7 +9,15 @@ import (
 )
 
 func Repeat(x *G.Node, axis, repeats int) (*G.Node, error) {
-	op, err := newRepeatOp(axis, repeats)
+	if x.Shape().Dims() == 0 {
+		return nil, fmt.Errorf("repeat: cannot repeat non-tensor node")
+	}
+	if axis >= x.Shape().Dims() {
+		return nil, fmt.Errorf("repeat: cannot have axis (%v) > dims (%v)",
+			axis, x.Shape().Dims())
+	}
+
+	op, err := newRepeatOp(axis, x.Shape().Dims(), repeats)
 	if err != nil {
 		return nil, fmt.Errorf("repeat: %v", err)
 	}
