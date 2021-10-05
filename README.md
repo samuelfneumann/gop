@@ -50,6 +50,10 @@ Gather           | Yes
 
 ## ToDo
 
-* [ ] Repeat
+* [ ] Repeat - repeats each row n times along some axis
+
+* [ ] RepeatN - repeats row i N_i times along some axis
 
 * [ ] Gather
+
+* [ ] Permute/RollAxis

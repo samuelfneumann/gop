@@ -8,6 +8,15 @@ import (
 	"gorgonia.org/tensor"
 )
 
+func Repeat(x *G.Node, axis, repeats int) (*G.Node, error) {
+	op, err := newRepeatOp(axis, repeats)
+	if err != nil {
+		return nil, fmt.Errorf("repeat: %v", err)
+	}
+
+	return G.ApplyOp(op, x)
+}
+
 // Clamp clamps a node's values to be between min and max. This function
 // can clamp a tensor storing float64's, float32's, or any integer
 // type, but is only differentiable if the tensor stores floating point
@@ -27,9 +36,9 @@ import (
 //		   { 0 otherwise
 func Clamp(x *G.Node, min, max interface{}, passGradient bool) (*G.Node,
 	error) {
-	op, err := newClamp(min, max, passGradient)
+	op, err := newClampOp(min, max, passGradient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("clamp: %v", err)
 	}
 
 	return G.ApplyOp(op, x)

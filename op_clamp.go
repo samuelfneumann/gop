@@ -19,7 +19,7 @@ type clampOp struct {
 }
 
 // newClamp returns a new clampOp
-func newClamp(min, max interface{}, passGradient bool) (*clampOp, error) {
+func newClampOp(min, max interface{}, passGradient bool) (*clampOp, error) {
 	op := &clampOp{
 		min:          min,
 		max:          max,

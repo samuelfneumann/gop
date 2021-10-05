@@ -2,10 +2,9 @@ package gop
 
 import (
 	"fmt"
+	"hash"
 	"hash/fnv"
 	"math/rand"
-
-	"gorgonia.org/gorgonia"
 )
 
 // ariter is anything that can return its arity
@@ -13,9 +12,14 @@ type ariter interface {
 	Arity() int
 }
 
+// hashWriter is anything that can write to a hash
+type hashWriter interface {
+	WriteHash(hash.Hash)
+}
+
 // SimpleHash constructs the 32-bit FNV-1a hash of a Gorgonia Op.
 // Taken from Gorgonia.
-func SimpleHash(op gorgonia.Op) uint32 {
+func SimpleHash(op hashWriter) uint32 {
 	h := fnv.New32a()
 	op.WriteHash(h)
 	return h.Sum32()
