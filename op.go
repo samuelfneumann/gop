@@ -34,6 +34,15 @@ func init() {
 	}
 }
 
+func Gather(x *G.Node, axis int, indices *G.Node) (*G.Node, error) {
+	op, err := newGatherOp(axis, indices.Shape().Dims())
+	if err != nil {
+		return nil, fmt.Errorf("gather: %v", err)
+	}
+
+	return G.ApplyOp(op, x, indices)
+}
+
 // Repeat repeats the elements of x along axis repeats times. This
 // function is conceptually similar to Numpy's repeat function and
 // PyTorch's repeat_interleave function.

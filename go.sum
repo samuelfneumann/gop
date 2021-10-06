@@ -10,6 +10,8 @@ github.com/apache/arrow/go/arrow v0.0.0-20201229220542-30ce2eb5d4dc/go.mod h1:c9
 github.com/apache/arrow/go/arrow v0.0.0-20210105145422-88aaea5262db/go.mod h1:c9sxoIT3YgLxH4UhLOCKaBlEojuMhVYpk4Ntv3opUTQ=
 github.com/apache/arrow/go/arrow v0.0.0-20211004175324-73f938694438 h1:7Q2ioB2RQcWQYOyy9P8nWmTLdNwTSH2sX2rb1gyR48o=
 github.com/apache/arrow/go/arrow v0.0.0-20211004175324-73f938694438/go.mod h1:Q7yQnSMnLvcXlZ8RV+jwz/6y1rQTqbX6C82SndT52Zs=
+github.com/apache/arrow/go/arrow v0.0.0-20211006163139-3c5b62c11673 h1:CouJLqsQ/Ti7prAEaHTXsxX35xCdowk9q6E5PSv+mGU=
+github.com/apache/arrow/go/arrow v0.0.0-20211006163139-3c5b62c11673/go.mod h1:Q7yQnSMnLvcXlZ8RV+jwz/6y1rQTqbX6C82SndT52Zs=
 github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca h1:xwIXr1FpA2XBoohlpvgb11No/zbsh5Clm/98PWPcHVA=
 github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca/go.mod h1:GEV5wmg4YquNw7v1kkyoX9etIk8yVmXj+AkDHuuETHs=
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
@@ -125,6 +127,8 @@ github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563 h1:dcxEF
 github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563/go.mod h1:GgP2+cpUDl/O4hCzFMwEueWNYIAaypjgKMk7zQxw/7g=
 github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39 h1:AVVQkzuF7V2hdMbibUS6u0q4Mz1OOR287/lXkMKxZUA=
 github.com/samuelfneumann/top v0.0.0-20211004210727-2d7890ea5d39/go.mod h1:Iyt4zqsUmWH49DpOpuvyiaMf/LdUg0kuEUmGY5LU4y4=
+github.com/samuelfneumann/top v0.0.0-20211005211821-2b48defd0c25 h1:FVe2Jjk/8pSFJjhulzpeU887n+Ju7Q8WnuyLMv5lNK4=
+github.com/samuelfneumann/top v0.0.0-20211005211821-2b48defd0c25/go.mod h1:YvVeYVPIa0NvfRRlkEu+XyV6AqUHM8yXLeuT9+h7lyo=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.1.4/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.2.0/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=

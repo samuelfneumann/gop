@@ -55,3 +55,5 @@ Gather           | Yes
 * [ ] Gather
 
 * [ ] Permute/RollAxis
+
+* [ ] Remove CheckArity from InferShape
