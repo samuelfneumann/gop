@@ -48,7 +48,7 @@ func (r *repeatOp) SymDiff(inputs G.Nodes, output, grad *G.Node) (G.Nodes,
 	diffOp := &repeatDiffOp{r}
 	nodes := make(G.Nodes, 1)
 
-	nodes[0], err = G.ApplyOp(diffOp, inputs[0], grad)
+	nodes[0], err = G.ApplyOp(diffOp, output, grad)
 
 	return nodes, err
 }
@@ -88,6 +88,11 @@ func (r *repeatOp) Hashcode() uint32 { return SimpleHash(r) }
 
 // InferShape implements the gorgonia.Op interface
 func (r *repeatOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
+	err := CheckArity(r, len(in))
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+
 	shapes, err := G.DimSizersToShapes(in)
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -172,6 +177,11 @@ func (r *repeatDiffOp) Hashcode() uint32 { return SimpleHash(r) }
 
 // InferShape implements the gorgonia.Op interface
 func (r *repeatDiffOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
+	err := CheckArity(r, len(in))
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+
 	shapes, err := G.DimSizersToShapes(in)
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -188,8 +198,9 @@ func (r *repeatDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 		return nil, fmt.Errorf("do: %v", err)
 	}
 
+	output := inputs[0].(tensor.Tensor)
 	grad := inputs[1].(tensor.Tensor)
-	shape, err := r.InferShape(grad.Shape())
+	shape, err := r.InferShape(output.Shape(), grad.Shape())
 	if err != nil {
 		return nil, fmt.Errorf("do: could not infer shape: %v", err)
 	}
