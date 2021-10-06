@@ -9,7 +9,7 @@ import (
 )
 
 func TestGather(t *testing.T) {
-	fmt.Println("No gradient computed for gather...")
+	fmt.Println("No gradient computed for gather... is it because indices is int?")
 	inBacking := [][]float64{
 		{0, 1, 2, 3, 4, 5, 6, 7},
 		{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
@@ -51,7 +51,7 @@ func TestGather(t *testing.T) {
 		)
 
 		indicesT := tensor.NewDense(
-			tensor.Float64,
+			tensor.Int,
 			indicesShapes[i],
 			tensor.WithBacking(indicesBacking[i]),
 		)
@@ -79,7 +79,7 @@ func TestGather(t *testing.T) {
 
 		// Loss and gradient
 		loss := G.Must(G.Mean(pred))
-		_, err = G.Grad(loss, in, indices)
+		_, err = G.Grad(loss, in)
 		if err != nil {
 			t.Error(err)
 		}
@@ -90,6 +90,9 @@ func TestGather(t *testing.T) {
 		// var gradVal G.Value
 		// G.Read(grad[0], &gradVal)
 
+		fmt.Println(g)
+		fmt.Println("Here is the issue - pred Dtype:", pred.Dtype())
+
 		vm := G.NewTapeMachine(g)
 		vm.RunAll()
 
@@ -97,7 +100,7 @@ func TestGather(t *testing.T) {
 			t.Errorf("expected:\n%v \nreceived:\n%v", out, pred)
 		}
 
-		fmt.Println(in.Grad())
+		fmt.Println(predVal.Shape(), in.Shape(), indices.Shape())
 
 		vm.Reset()
 		vm.Close()

@@ -74,11 +74,11 @@ func (g *gatherOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 
 func (g *gatherOp) Type() hm.Type {
 	any := hm.TypeVariable('a')
-	b := G.TensorType{
+	indices := G.TensorType{
 		Dims: g.dims,
 		Of:   tensor.Int,
 	}
-	return hm.NewFnType(any, b, b)
+	return hm.NewFnType(any, indices, any)
 }
 
 func (g *gatherOp) Do(inputs ...G.Value) (G.Value, error) {
@@ -149,7 +149,12 @@ func (g *gatherDiffOp) String() string {
 
 func (g *gatherDiffOp) Type() hm.Type {
 	any := hm.TypeVariable('a')
-	return hm.NewFnType(any, any, any)
+	indices := G.TensorType{
+		Dims: g.op.dims,
+		Of:   tensor.Int,
+	}
+
+	return hm.NewFnType(any, indices, any)
 }
 
 func (g *gatherDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
