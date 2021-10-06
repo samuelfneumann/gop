@@ -78,7 +78,11 @@ func (e *erfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 		return nil, fmt.Errorf("inferShape: nil input")
 	}
 
-	return inputs[0].(tensor.Shape), nil
+	shapes, err := G.DimSizersToShapes(inputs)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	return shapes[0], nil
 }
 
 // WriteHash writes the hash of the receiver to a hash struct
@@ -167,7 +171,11 @@ func (e *erfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 		return nil, fmt.Errorf("inferShape: nil input")
 	}
 
-	return inputs[0].(tensor.Shape), nil
+	shapes, err := G.DimSizersToShapes(inputs)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	return shapes[0], nil
 }
 
 // Type returns the type of the operation

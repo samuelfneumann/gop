@@ -88,7 +88,11 @@ func (r *repeatOp) Hashcode() uint32 { return SimpleHash(r) }
 
 // InferShape implements the gorgonia.Op interface
 func (r *repeatOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
-	shape := in[0].(tensor.Shape).Clone()
+	shapes, err := G.DimSizersToShapes(in)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	shape := shapes[0].Clone()
 	shape[r.axis] *= r.repeats
 
 	return shape, nil
@@ -168,7 +172,11 @@ func (r *repeatDiffOp) Hashcode() uint32 { return SimpleHash(r) }
 
 // InferShape implements the gorgonia.Op interface
 func (r *repeatDiffOp) InferShape(in ...G.DimSizer) (tensor.Shape, error) {
-	shape := in[0].(tensor.Shape).Clone()
+	shapes, err := G.DimSizersToShapes(in)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	shape := shapes[0].Clone()
 	shape[r.op.axis] /= r.op.repeats
 
 	return shape, nil

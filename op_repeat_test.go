@@ -13,7 +13,7 @@ import (
 // TestRepeat runs tests to ensure the forward and backward pass of
 // Repeat act as expected. The tests use completely random data.
 func TestRepeat(t *testing.T) {
-	const numTests int = 15 // The number of random tests to run
+	const numTests int = 20 // The number of random tests to run
 
 	// The maximum number of times an axis can be repeated in a test
 	const maxRepeats int = 32
@@ -82,6 +82,7 @@ func TestRepeat(t *testing.T) {
 
 		// Construct loss + gradient
 		loss := G.Must(G.Mean(c))
+
 		grad, err := G.Grad(loss, in)
 		if err != nil {
 			t.Error(err)
@@ -98,7 +99,6 @@ func TestRepeat(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		vm.Reset()
 
 		if !cVal.(tensor.Tensor).Eq(repeatTarget) {
 			t.Errorf("expected: \n%v \nreceived: \n%v\n", repeatTarget, cVal)
@@ -126,5 +126,6 @@ func TestRepeat(t *testing.T) {
 			}
 		}
 		vm.Close()
+		vm.Reset()
 	}
 }

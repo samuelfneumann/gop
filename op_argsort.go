@@ -48,7 +48,11 @@ func (a *argsortOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 		return nil, fmt.Errorf("inferShape: nil input")
 	}
 
-	return inputs[0].(tensor.Shape), nil
+	shapes, err := G.DimSizersToShapes(inputs)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	return shapes[0], nil
 }
 
 // ReturnsPtr implements the gorgonia.Op interface

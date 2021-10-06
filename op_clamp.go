@@ -62,7 +62,16 @@ func (c *clampOp) Type() hm.Type {
 
 // InferShape implements the gorgonia.Op interface
 func (c *clampOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
-	return inputs[0].(tensor.Shape), nil
+	err := CheckArity(c, len(inputs))
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+
+	shapes, err := G.DimSizersToShapes(inputs)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+	return shapes[0], nil
 }
 
 // ReturnsPtr implements the gorgonia.Op interface
@@ -135,7 +144,18 @@ func (c *clampDiffOp) Type() hm.Type {
 
 // InferShape implements the gorgonia.Op interface
 func (c *clampDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
-	return inputs[0].(tensor.Shape), nil
+	err := CheckArity(c, len(inputs))
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+
+	shapes, err := G.DimSizersToShapes(inputs)
+	if err != nil {
+		return nil, fmt.Errorf("inferShape: %v", err)
+	}
+
+	fmt.Println("Diff InferShape Called")
+	return shapes[0], nil
 }
 
 // RteurnsPtr implements the gorgonia.Op interface
