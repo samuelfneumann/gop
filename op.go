@@ -29,7 +29,8 @@ func init() {
 	if !flag {
 		fmt.Fprintf(os.Stderr,
 			colour.Red+"WARNING: using 32-bit precision, use caution when "+
-				"using top with int64 values which may be cast to int (int32)")
+				"using top with int64 values which may be cast to int "+
+				"(int32)"+colour.Reset)
 	}
 }
 
@@ -83,7 +84,7 @@ func Clamp(x *G.Node, min, max interface{}, passGradient bool) (*G.Node,
 
 // Argsort returns the indices that would sort x along axis
 func Argsort(x *G.Node, axis int) (*G.Node, error) {
-	op := newArgsortOp(axis)
+	op := newArgsortOp(axis, x.Shape().Dims())
 
 	return G.ApplyOp(op, x)
 }
