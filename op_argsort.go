@@ -14,21 +14,25 @@ import (
 // argsortOp is the argsort operation
 type argsortOp struct {
 	axis int
+	dims int // The number of dimensions in the input tensor to argsort
 }
 
 // newArgsortOp returns a new argsortOp
-func newArgsortOp(axis int) *argsortOp { return &argsortOp{axis} }
+func newArgsortOp(axis int, dims int) *argsortOp {
+	return &argsortOp{
+		axis: axis,
+		dims: dims,
+	}
+}
 
 // Arity implements the gorgonia.Op interface
 func (a *argsortOp) Arity() int { return 1 }
 
 // Type implements the gorgonia.Op interface
 func (a *argsortOp) Type() hm.Type {
-	// All pointwise unary operations have this type:
-	// op :: (Arithable a) => a -> a
 	any := hm.TypeVariable('a')
 	b := G.TensorType{
-		Dims: 1,
+		Dims: a.dims,
 		Of:   tensor.Int,
 	}
 	return hm.NewFnType(any, b)
