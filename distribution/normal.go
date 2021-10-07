@@ -173,6 +173,20 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
+func (n *Normal) Entropy() *G.Node {
+	half := G.NewConstant(0.5)
+	twoPi := G.NewConstant(math.Pi * 2.0)
+	two := G.NewConstant(2.0)
+
+	entropy := G.Must(G.Pow(n.stddev, two))
+	entropy = G.Must(G.HadamardProd(entropy, twoPi))
+	entropy = G.Must(G.Log(entropy))
+	entropy = G.Must(G.HadamardProd(half, entropy))
+	entropy = G.Must(G.Add(entropy, half))
+
+	return entropy
+}
+
 func (n *Normal) isBatch(x *G.Node) bool {
 	return !x.Shape().Eq(n.mean.Shape())
 }

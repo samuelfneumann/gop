@@ -2,9 +2,11 @@ package distribution
 
 import (
 	"math"
-	"math/rand"
+	rand "math/rand"
 	"testing"
 	"time"
+
+	expRand "golang.org/x/exp/rand"
 
 	"gonum.org/v1/gonum/stat/distuv"
 	G "gorgonia.org/gorgonia"
@@ -211,4 +213,138 @@ func TestVec(t *testing.T) {
 
 	vm.Reset()
 	vm.Close()
+}
+
+// TestNormalEntropyScalar tests the Entropy() method of the Normal
+// struct given scalar mean and standard deviation
+func TestNormalEntropyScalar(t *testing.T) {
+	const threshold float64 = 0.000001
+	const tests int = 30
+	const loc float64 = 3
+	const scale float64 = 1.5
+
+	for i := 0; i < tests; i++ {
+		meanBacking := (rand.Float64() - 0.5) * loc
+		stdBacking := math.Exp(rand.Float64()) * scale
+
+		g := G.NewGraph()
+
+		mean := G.NewScalar(g, tensor.Float64)
+		err := G.Let(mean, meanBacking)
+		if err != nil {
+			t.Error(err)
+		}
+
+		stddev := G.NewScalar(g, tensor.Float64)
+		err = G.Let(stddev, stdBacking)
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := NewNormal(mean, stddev, uint64(1))
+		if err != nil {
+			t.Error(err)
+		}
+
+		entropy := n.Entropy()
+		var eVal G.Value
+		G.Read(entropy, &eVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		targetDist := distuv.Normal{
+			Mu:    meanBacking,
+			Sigma: stdBacking,
+			Src:   expRand.NewSource(uint64(time.Now().UnixNano())),
+		}
+
+		if math.Abs(targetDist.Entropy()-
+			eVal.Data().([]float64)[0]) > threshold {
+			t.Errorf("expected: %v received: %v", targetDist.Entropy(),
+				eVal.Data().([]float64)[0])
+		}
+
+		vm.Reset()
+	}
+}
+
+// TestNormalEntropyVec tests the Entropy() method of the Normal
+// struct given vector mean and standard deviation
+func TestNormalEntropyVec(t *testing.T) {
+	const threshold float64 = 0.000001
+	const tests int = 15
+	const scale float64 = 1.5
+
+	const maxSize int = 32
+	const minSize int = 1
+
+	for i := 0; i < tests; i++ {
+		size := minSize + rand.Intn(maxSize-minSize)
+
+		meanBackings := make([]float64, size)
+		stdBackings := make([]float64, size)
+		entropyTarget := make([]float64, size)
+		for j := range meanBackings {
+			// ? Gorgonia keeps making mean and stddev point to the same
+			// ? node... so I'll just give them the same value, I've logged
+			// ? an issue on GitHub
+			stdBackings[j] = math.Exp(rand.Float64()) * scale
+			meanBackings[j] = stdBackings[j]
+			targetDist := distuv.Normal{
+				Mu:    meanBackings[j],
+				Sigma: stdBackings[j],
+				Src:   expRand.NewSource(uint64(time.Now().UnixNano())),
+			}
+			entropyTarget[j] = targetDist.Entropy()
+		}
+
+		g := G.NewGraph()
+
+		meanT := tensor.New(
+			tensor.WithShape(size),
+			tensor.WithBacking(meanBackings),
+		)
+		mean := G.NewTensor(
+			g,
+			meanT.Dtype(),
+			meanT.Dims(),
+			G.WithShape(size),
+			G.WithValue(meanT),
+		)
+
+		stddevT := tensor.New(
+			tensor.WithShape(size),
+			tensor.WithBacking(stdBackings),
+		)
+		stddev := G.NewTensor(
+			g,
+			stddevT.Dtype(),
+			stddevT.Dims(),
+			G.WithShape(size),
+			G.WithValue(stddevT),
+		)
+
+		n, err := NewNormal(mean, stddev, uint64(1))
+		if err != nil {
+			t.Error(err)
+		}
+
+		entropy := n.Entropy()
+		var eVal G.Value
+		G.Read(entropy, &eVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		for j := range entropyTarget {
+			if math.Abs(entropyTarget[j]-
+				eVal.Data().([]float64)[j]) > threshold {
+				t.Errorf("expected: %v received: %v", entropyTarget[j],
+					eVal.Data().([]float64)[0])
+			}
+		}
+
+		vm.Reset()
+	}
 }
