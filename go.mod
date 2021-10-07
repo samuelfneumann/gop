@@ -7,6 +7,7 @@ require (
 	github.com/chewxy/math32 v1.0.8
 	github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563
 	github.com/samuelfneumann/top v0.0.0-20211005211821-2b48defd0c25
+	gonum.org/v1/gonum v0.9.3
 	gorgonia.org/gorgonia v0.9.17
 	gorgonia.org/tensor v0.9.21
 )
@@ -21,8 +22,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/xtgo/set v1.0.0 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20201222180813-1025295fd063 // indirect
+	golang.org/x/exp v0.0.0-20191002040644-a1355ae1e2c3 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gonum.org/v1/gonum v0.9.3 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gorgonia.org/cu v0.9.3 // indirect
 	gorgonia.org/dawson v1.2.0 // indirect
