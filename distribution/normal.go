@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/samuelfneumann/gop"
 	"golang.org/x/exp/rand"
 
 	"gonum.org/v1/gonum/stat/distuv"
 	G "gorgonia.org/gorgonia"
+	"gorgonia.org/tensor"
 )
 
 // Normal is a univariate normal distribution, which may hold
@@ -171,6 +173,68 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 	}
 
 	return x, nil
+}
+
+// ! NOT TESTED YET
+// ! NOT TESTED YET
+// ! NOT TESTED YET
+// ! NOT TESTED YET
+func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
+	x, err := n.fixShape(x)
+	if err != nil {
+		return nil, fmt.Errorf("prob: %v", err)
+	}
+
+	if x.IsScalar() {
+		x, err = G.Reshape(x, []int{1})
+		if err != nil {
+			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
+		}
+	}
+
+	rootTwo := G.NewConstant(math.Sqrt(2.0))
+	one := G.NewConstant(1.0)
+	half := G.NewConstant(0.5)
+
+	if n.isBatch(x) {
+		// Calculate probability of batch
+		var batchDim []byte = []byte{0}
+		if n.mean.Shape()[0] > 1 {
+			batchDim = []byte{1}
+		}
+		x = G.Must(G.BroadcastSub(x, n.mean, nil, batchDim))
+		x = G.Must(G.HadamardDiv(x, rootTwo))
+		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
+		x = G.Must(gop.Erf(x))
+		x = G.Must(G.Add(one, x))
+		x = G.Must(G.HadamardProd(half, x))
+	} else {
+		x = G.Must(G.Sub(x, n.mean))
+		x = G.Must(G.HadamardDiv(x, rootTwo))
+		x = G.Must(G.HadamardDiv(x, n.stddev))
+		x = G.Must(gop.Erf(x))
+		x = G.Must(G.Add(one, x))
+		x = G.Must(G.HadamardProd(half, x))
+	}
+
+	return x, nil
+}
+
+func (n *Normal) EventShape() tensor.Shape {
+	return n.mean.Shape()
+}
+
+func (n *Normal) Variance() *G.Node {
+	two := G.NewConstant(2.0)
+	return G.Must(G.Pow(n.stddev, two))
+}
+
+func (n *Normal) StdDev() *G.Node {
+	return n.stddev
+}
+
+func (n *Normal) Mean() *G.Node {
+	return n.mean
 }
 
 func (n *Normal) Entropy() *G.Node {

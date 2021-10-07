@@ -25,11 +25,6 @@ type Distribution interface {
 	Entropy() *G.Node
 	EventShape() tensor.Shape
 
-	// Returns a new distribution instance with batch dimensions
-	// expanded to batchShape. This function does not perform
-	// and argument checking
-	Expand(batchShape int) (Distribution, error)
-
 	// LogProb returns the log of the probability density of
 	// mass of the node. The shape of the node must be
 	// compatible with the shape of the distribution.
