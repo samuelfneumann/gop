@@ -8,8 +8,9 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// !! Not finished
+
 func TestGather(t *testing.T) {
-	fmt.Println("No gradient computed for gather... is it because indices is int?")
 	inBacking := [][]float64{
 		{0, 1, 2, 3, 4, 5, 6, 7},
 		{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
@@ -62,12 +63,14 @@ func TestGather(t *testing.T) {
 			inT.Dtype(),
 			inT.Shape().Dims(),
 			G.WithValue(inT),
+			G.WithName("input"),
 		)
 		indices := G.NewTensor(
 			g,
 			indicesT.Dtype(),
 			indicesT.Shape().Dims(),
 			G.WithValue(indicesT),
+			G.WithName("indices"),
 		)
 
 		pred, err := Gather(in, axis[i], indices)
@@ -78,8 +81,11 @@ func TestGather(t *testing.T) {
 		G.Read(pred, &predVal)
 
 		// Loss and gradient
-		loss := G.Must(G.Mean(pred))
-		_, err = G.Grad(loss, in)
+		fmt.Println("Calculating loss")
+		loss := G.Must(G.Sum(pred))
+
+		fmt.Println("Taking grad")
+		_, err = G.Grad(loss, in, indices)
 		if err != nil {
 			t.Error(err)
 		}
@@ -89,14 +95,13 @@ func TestGather(t *testing.T) {
 		// }
 		// var gradVal G.Value
 		// G.Read(grad[0], &gradVal)
-
-		fmt.Println(g)
-		fmt.Println("Here is the issue - pred Dtype:", pred.Dtype())
+		fmt.Println("Done")
 
 		vm := G.NewTapeMachine(g)
 		vm.RunAll()
 
 		if !predVal.(*tensor.Dense).Eq(out) {
+			fmt.Println("===UNEQUAL")
 			t.Errorf("expected:\n%v \nreceived:\n%v", out, pred)
 		}
 

@@ -131,7 +131,7 @@ type gatherDiffOp struct {
 	op *gatherOp
 }
 
-func (g *gatherDiffOp) Arity() int { return 2 }
+func (g *gatherDiffOp) Arity() int { return 3 }
 
 func (g *gatherDiffOp) ReturnsPtr() bool { return false }
 
@@ -154,7 +154,7 @@ func (g *gatherDiffOp) Type() hm.Type {
 		Of:   tensor.Int,
 	}
 
-	return hm.NewFnType(any, indices, any)
+	return hm.NewFnType(any, indices, any, any)
 }
 
 func (g *gatherDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
@@ -166,12 +166,19 @@ func (g *gatherDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 		return nil, fmt.Errorf("do: %v", err)
 	}
 
+	fmt.Println("here")
 	input := inputs[0].(tensor.Tensor)
 	indices := inputs[1].(tensor.Tensor)
+	grad := inputs[2].(tensor.Tensor)
 
-	fmt.Println("Do Diff")
+	fmt.Println(input, indices, grad)
 
-	return top.GatherB(input, g.op.axis, indices)
+	gathered, err := top.GatherB(input, g.op.axis, indices)
+	if err != nil {
+		return nil, fmt.Errorf("do: could not gatherb: %v", err)
+	}
+
+	return tensor.Mul(gathered, grad)
 }
 
 func (g *gatherDiffOp) checkInputs(inputs ...G.Value) error {
