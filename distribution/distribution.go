@@ -20,7 +20,7 @@ import (
 // Distribution is a probability distribution
 type Distribution interface {
 	Cdf(*G.Node) (*G.Node, error)
-	ICdf(*G.Node) (*G.Node, error)
+	Cdfinv(*G.Node) (*G.Node, error)
 
 	Entropy() *G.Node
 	Shape() tensor.Shape

@@ -175,7 +175,53 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
-// Cdf compute the cumulative distribution function of x. The shape
+// !!! Not tested
+func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
+	x, err := n.fixShape(x)
+	if err != nil {
+		return nil, fmt.Errorf("prob: %v", err)
+	}
+
+	if x.IsScalar() {
+		x, err = G.Reshape(x, []int{1})
+		if err != nil {
+			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
+		}
+	}
+
+	two := x.Graph().Constant(G.NewF64(2.0))
+	negativeHalf := x.Graph().Constant(G.NewF64(-0.5))
+	lnRootTwoPi := x.Graph().Constant(G.NewF64(math.Log(math.Sqrt(
+		math.Pi * 2.))))
+
+	if n.isBatch(x) {
+		// Calculate probability of batch
+		var batchDim []byte = []byte{0}
+		if n.mean.Shape()[0] > 1 {
+			batchDim = []byte{1}
+		}
+		x = G.Must(G.BroadcastSub(x, n.mean, nil, batchDim))
+		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
+		x = G.Must(G.Pow(x, two))
+		x = G.Must(G.HadamardProd(negativeHalf, x))
+		lnStd := G.Must(G.Log(n.stddev))
+		x = G.Must(G.BroadcastSub(x, lnStd, nil, batchDim))
+		x = G.Must(G.Sub(x, lnRootTwoPi))
+	} else {
+		// Calculate probability of single sample
+		x = G.Must(G.Sub(x, n.mean))
+		x = G.Must(G.HadamardDiv(x, n.stddev))
+		x = G.Must(G.Pow(x, two))
+		x = G.Must(G.HadamardProd(negativeHalf, x))
+		lnStd := G.Must(G.Log(n.stddev))
+		x = G.Must(G.Sub(x, lnStd))
+		x = G.Must(G.Sub(x, lnRootTwoPi))
+	}
+
+	return x, nil
+}
+
+// Cdf computes the cumulative distribution function of x. The shape
 // of x is treated in the same way as the Prob() method.
 func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	x, err := n.fixShape(x)
@@ -217,6 +263,51 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	}
 
 	return x, nil
+}
+
+// Cdfinv computes the inverse cumulative distribution function at
+// probability p. The shape of p is treated in the same way as the
+// Prob() method.
+func (n *Normal) Cdfinv(p *G.Node) (*G.Node, error) {
+	p, err := n.fixShape(p)
+	if err != nil {
+		return nil, fmt.Errorf("prob: %v", err)
+	}
+
+	if p.IsScalar() {
+		p, err = G.Reshape(p, []int{1})
+		if err != nil {
+			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
+		}
+	}
+
+	rootTwo := p.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
+	one := p.Graph().Constant(G.NewF64(1.0))
+	two := p.Graph().Constant(G.NewF64(2.0))
+
+	if n.isBatch(p) {
+		// Calculate probability of batch
+		var batchDim []byte = []byte{0}
+		if n.mean.Shape()[0] > 1 {
+			batchDim = []byte{1}
+		}
+		p = G.Must(G.HadamardProd(two, p))
+		p = G.Must(G.Sub(p, one))
+		p = G.Must(gop.Erfinv(p))
+		p = G.Must(G.HadamardProd(p, rootTwo))
+		p = G.Must(G.BroadcastHadamardProd(p, n.stddev, nil, batchDim))
+		p = G.Must(G.BroadcastAdd(p, n.mean, nil, batchDim))
+	} else {
+		// Calculate the probability density of a single observation
+		p = G.Must(G.HadamardProd(two, p))
+		p = G.Must(G.Sub(p, one))
+		p = G.Must(gop.Erfinv(p))
+		p = G.Must(G.HadamardProd(p, rootTwo))
+		p = G.Must(G.HadamardProd(p, n.stddev))
+		p = G.Must(G.Add(n.mean, p))
+	}
+
+	return p, nil
 }
 
 // Shape returns the number of distributions stored by the receiver

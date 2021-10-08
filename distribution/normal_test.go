@@ -68,7 +68,7 @@ func TestNormalProbScalar(t *testing.T) {
 
 		var x *G.Node
 		if len(xBacking) == 1 {
-			x = G.NewScalar(g, tensor.Float64)
+			x = G.NewScalar(g, tensor.Float64, G.WithName("scalarX"))
 			if err := G.Let(x, xBacking[0]); err != nil {
 				t.Error(err)
 			}
@@ -82,6 +82,7 @@ func TestNormalProbScalar(t *testing.T) {
 				g,
 				xT.Dtype(),
 				G.WithValue(xT),
+				G.WithName("tensorX"),
 			)
 		}
 
@@ -525,6 +526,203 @@ func TestNormalCdfVec(t *testing.T) {
 			if math.Abs(probOut[j]-expected[j]) > threshold {
 				t.Errorf("expected: %v, received: %v, x: %x", expected[j],
 					probOut[j], sampleBacking[j])
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
+// TestNormalCdfScalar tests the Cdf() method of the Normal struct
+// with scalar mean and standard deviation
+func TestNormalCdfinvScalar(t *testing.T) {
+	const threshold float64 = 0.00001 // Threshold at which floats are equal
+	const tests int = 30              // Number of tests to run
+	rand.Seed(time.Now().UnixNano())
+
+	// Set the scale for mean, stddev, and sampling
+	meanScale := 2.
+	stdScale := 2.
+
+	// Min and Maprob number of dimensions for samples to compute the
+	// PDF of
+	const minSize = 1
+	const maprobSize = 10
+
+	// Targets
+	src := expRand.NewSource(uint64(time.Now().UnixNano()))
+	dist := distuv.Uniform{
+		Max: 1.0,
+		Min: 0.0,
+		Src: src,
+	}
+	for i := 0; i < tests; i++ {
+		// Random mean and stddev
+		stddev := math.Exp(rand.Float64()) * stdScale
+		mean := (rand.Float64() - 0.5) * meanScale
+		size := minSize + rand.Intn(maprobSize-minSize+1)
+
+		probBacking := make([]float64, size)
+		cdfs := make([]float64, size) // Correct CDFs
+		for j := range probBacking {
+			// Get a random probability to compute the inverse cdf of
+			probBacking[j] = dist.Rand()
+
+			// Store the correct CDF to ensure the calculation is correct
+			cdfs[j] = mean + stddev*math.Sqrt(2.0)*math.Erfinv(
+				2.0*probBacking[j]-1)
+		}
+
+		g := G.NewGraph()
+		stddevNode := G.NewScalar(g, tensor.Float64, G.WithName("stddev"))
+		err := G.Let(stddevNode, stddev)
+		if err != nil {
+			t.Error(err)
+		}
+
+		meanNode := G.NewScalar(g, tensor.Float64, G.WithName("mean"))
+		err = G.Let(meanNode, mean)
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := NewNormal(meanNode, stddevNode, uint64(11))
+		if err != nil {
+			t.Error(err)
+		}
+
+		var prob *G.Node
+		if len(probBacking) == 1 {
+			prob = G.NewScalar(g, tensor.Float64)
+			if err := G.Let(prob, probBacking[0]); err != nil {
+				t.Error(err)
+			}
+		} else {
+			probT := tensor.NewDense(
+				tensor.Float64,
+				[]int{len(probBacking)},
+				tensor.WithBacking(probBacking),
+			)
+			prob = G.NewVector(
+				g,
+				probT.Dtype(),
+				G.WithValue(probT),
+				G.WithName("probInput"),
+			)
+		}
+
+		cdf, err := n.Cdfinv(prob)
+		if err != nil {
+			t.Error(err)
+		}
+		var cdfVal G.Value
+		G.Read(cdf, &cdfVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		// Check output
+		cdfOut := cdfVal.Data().([]float64)
+		for j := range cdfOut {
+			if math.Abs(cdfOut[j]-cdfs[j]) > threshold {
+				t.Errorf("eprobpected: %v received: %v for prob: %v", cdfs[j],
+					cdfOut[j], probBacking[j])
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
+func TestNormalCdfinvVec(t *testing.T) {
+	const threshold = 0.000001 // Threshold for floats to be considered equal
+	const tests int = 15       // Number of random tests to run
+	const scale float64 = 2.0  // Scale of distributions' mean and stddev
+
+	const minRows int = 1
+	const maxRows int = 10
+	const minCols int = 1
+	const maxCols int = 10
+
+	for i := 0; i < tests; i++ {
+		rows := minRows + rand.Intn(maxRows-minRows+1)
+		cols := minCols + rand.Intn(maxCols-minCols+1)
+		size := []int{rows}
+		sampleSize := []int{rows, cols}
+
+		meanBacking := make([]float64, rows)
+		stddevBacking := make([]float64, rows)
+		probBacking := make([]float64, 0, rows*cols)
+		expected := make([]float64, 0, rows*cols)
+		src := expRand.NewSource(uint64(time.Now().UnixNano()))
+		dist := distuv.Uniform{
+			Max: 1.0,
+			Min: 0.0,
+			Src: src,
+		}
+		for r := 0; r < rows; r++ {
+			mean := (rand.Float64() - 0.5) * scale
+			stddev := math.Exp(rand.Float64() * scale)
+			meanBacking[r] = mean
+			stddevBacking[r] = stddev
+
+			for c := 0; c < cols; c++ {
+				prob := dist.Rand()
+				probBacking = append(probBacking, prob)
+
+				cdf := mean + stddev*math.Sqrt(2.0)*math.Erfinv(2*prob-1)
+				expected = append(expected, cdf)
+			}
+		}
+
+		g := G.NewGraph()
+		meanT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(meanBacking),
+		)
+		mean := G.NewVector(g, meanT.Dtype(), G.WithValue(meanT),
+			G.WithName("mean"))
+
+		stddevT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(stddevBacking),
+		)
+		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
+			G.WithName("stddev"))
+
+		n, err := NewNormal(mean, stddev, uint64(1))
+		if err != nil {
+			t.Error(err)
+		}
+
+		samplesT := tensor.NewDense(
+			tensor.Float64,
+			sampleSize,
+			tensor.WithBacking(probBacking),
+		)
+		samples := G.NewMatrix(g, tensor.Float64, G.WithValue(samplesT),
+			G.WithName("samples"))
+
+		prob, err := n.Cdfinv(samples)
+		if err != nil {
+			t.Error(err)
+		}
+		var probVal G.Value
+		G.Read(prob, &probVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		probOut := probVal.Data().([]float64)
+
+		for j := range probOut {
+			if math.Abs(probOut[j]-expected[j]) > threshold {
+				t.Errorf("expected: %v, received: %v, x: %x", expected[j],
+					probOut[j], probBacking[j])
 			}
 		}
 
