@@ -5,11 +5,10 @@ Although Gorgonia is a great tool for `Go` developers, it lacks many of
 the features I need for reinforcement learning research. This `Go` module
 provides those operations.
 
-Due to how data is stored in Gorgonia, only symbolic differentiation
-is supported in this module. Automatic differentiation is not supported.
-Therefore, you must use a `gorgonia.tapeMachine` if you require that
-the operations used in this package be differentiable. Note that many
-operations, such as `Argsort` are not differentiable anyway.
+Due to how I work with Gorgonia, only symbolic differentiation
+is supported in this module as of yet. Automatic differentiation is not
+supported. Note that many operations, such as `Argsort` are not
+differentiable anyway. Eventually, AutoDiff will be supported.
 
 Furthermore, only tensors of floating-point types are differentiable. If you
 have an integer tensor and perform operations on it, you cannot differentiate
@@ -35,12 +34,12 @@ any integer type properly.
 
 The following is a list of operations implemented:
 
-Operation Name   |   Differentiable?
------------------|-------------------
-Argsort          | No
-Error Function   | Yes
-Clamp/Clip       | Yes
-Repeat           | Yes
+Operation Name   |   SymDiff?   |   AutoDiff?
+-----------------|--------------|--------------
+Argsort          | No           | No
+Error Function   | Yes          | No
+Clamp/Clip       | Yes          | No
+Repeat           | Yes          | No
 
 The following is a list of planned operations that will be implemented soon:
 
