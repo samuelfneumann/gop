@@ -39,7 +39,7 @@ import (
 // any matrix input will be considered a batch upon which to compute,
 // with the batch dimension being the column dimension. The row
 // dimension is considered as separate data for each of the N
-// distributions, and the input matrixs must have N rows exactly.
+// distributions, and the input matrix must have N rows exactly.
 type Normal struct {
 	mean    *G.Node
 	meanVal G.Value
@@ -175,10 +175,8 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
-// ! NOT TESTED YET
-// ! NOT TESTED YET
-// ! NOT TESTED YET
-// ! NOT TESTED YET
+// Cdf compute the cumulative distribution function of x. The shape
+// of x is treated in the same way as the Prob() method.
 func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	x, err := n.fixShape(x)
 	if err != nil {
@@ -209,6 +207,7 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 		x = G.Must(G.Add(one, x))
 		x = G.Must(G.HadamardProd(half, x))
 	} else {
+		// Calculate the probability density of a single observation
 		x = G.Must(G.Sub(x, n.mean))
 		x = G.Must(G.HadamardDiv(x, rootTwo))
 		x = G.Must(G.HadamardDiv(x, n.stddev))
@@ -220,23 +219,32 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
-func (n *Normal) EventShape() tensor.Shape {
+// Shape returns the number of distributions stored by the receiver
+func (n *Normal) Shape() tensor.Shape {
 	return n.mean.Shape()
 }
 
+// Variance returns the variance of the distribution(s) stored by the
+// receiver
 func (n *Normal) Variance() *G.Node {
 	two := n.mean.Graph().Constant(G.NewF64(2.0))
 	return G.Must(G.Pow(n.stddev, two))
 }
 
+// StdDev returns the standard deviation of the distribution(s)
+// stored by the receiver
 func (n *Normal) StdDev() *G.Node {
 	return n.stddev
 }
 
+// Mean returns the mean of the distribution(s) stored by the
+// receiver
 func (n *Normal) Mean() *G.Node {
 	return n.mean
 }
 
+// Entropy returns the entropy of the distribution(s) stored by the
+// receiver
 func (n *Normal) Entropy() *G.Node {
 	half := n.mean.Graph().Constant(G.NewF64(0.5))
 	twoPi := n.mean.Graph().Constant(G.NewF64(math.Pi * 2.0))
@@ -251,11 +259,22 @@ func (n *Normal) Entropy() *G.Node {
 	return entropy
 }
 
+// isBatch returns whether x is a batch of samples to calculate some
+// method on
 func (n *Normal) isBatch(x *G.Node) bool {
 	return !x.Shape().Eq(n.mean.Shape())
 }
 
+// fixShape adjusts the shape of x so that it can be used in some
+// method. It returns an error indicating if x is of an invalid shape
+// which could not be adjusted.
 func (n *Normal) fixShape(x *G.Node) (*G.Node, error) {
+	// Normal always works with vectors. If an input meand or stddev
+	// is given as a scalar, it is converted to a 1-vector.
+	//
+	// n.mean is always a vector. If n.mean.Shape() == []int{1}, then
+	// it is analogous to a scalar. If n.mean.Shape()[0] > 1, then it
+	// is a vector.
 	if x.IsScalar() && n.mean.Shape()[0] == 1 {
 		return G.Reshape(x, []int{1})
 
@@ -267,16 +286,25 @@ func (n *Normal) fixShape(x *G.Node) (*G.Node, error) {
 		return nil, fmt.Errorf("expected x to by a vector but got shape %v",
 			x.Shape())
 
-	} else if x.IsScalar() && n.mean.IsMatrix() {
-		return nil, fmt.Errorf("expected x to be a matrix but got scalar")
+	} else if x.IsScalar() && n.mean.Shape()[0] > 1 {
+		return nil, fmt.Errorf("expected x to be a vector or matrix but " +
+			"got scalar")
 
-	} else if x.IsMatrix() && n.mean.IsVector() {
-		if x.Shape()[0] != n.mean.Shape()[0] {
-			return nil, fmt.Errorf("expected x to have first dimension of "+
-				"size %v but got x shape %v", n.mean.Shape()[0],
-				x.Shape())
-		}
+	} else if x.IsMatrix() && n.mean.Shape()[0] > 1 &&
+		x.Shape()[0] != n.mean.Shape()[0] {
+		return nil, fmt.Errorf("expected x to have first dimension of "+
+			"size %v but got shape %v", n.mean.Shape()[0],
+			x.Shape())
+
+	} else if x.IsVector() && n.mean.Shape()[0] == 1 {
+		return x, nil
+
+	} else if x.IsMatrix() && n.mean.Shape()[0] > 1 &&
+		n.mean.Shape()[0] == x.Shape()[0] {
+		return x, nil
 	}
 
-	return x, nil
+	return nil, fmt.Errorf("could not adjust shape of x expected shape "+
+		"compatible with mean shape %v but got x shape %v", n.mean.Shape(),
+		x.Shape())
 }

@@ -23,7 +23,7 @@ type Distribution interface {
 	ICdf(*G.Node) (*G.Node, error)
 
 	Entropy() *G.Node
-	EventShape() tensor.Shape
+	Shape() tensor.Shape
 
 	// LogProb returns the log of the probability density of
 	// mass of the node. The shape of the node must be
