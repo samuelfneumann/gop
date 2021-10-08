@@ -144,9 +144,9 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 		}
 	}
 
-	two := G.NewConstant(2.0)
-	negativeHalf := G.NewConstant(-0.5)
-	rootTwoPi := G.NewConstant(math.Sqrt(math.Pi * 2.))
+	two := x.Graph().Constant(G.NewF64(2.0))
+	negativeHalf := x.Graph().Constant(G.NewF64(-0.5))
+	rootTwoPi := x.Graph().Constant(G.NewF64(math.Sqrt(math.Pi * 2.)))
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
@@ -192,9 +192,9 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 		}
 	}
 
-	rootTwo := G.NewConstant(math.Sqrt(2.0))
-	one := G.NewConstant(1.0)
-	half := G.NewConstant(0.5)
+	rootTwo := x.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
+	one := x.Graph().Constant(G.NewF64(1.0))
+	half := x.Graph().Constant(G.NewF64(0.5))
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
@@ -225,7 +225,7 @@ func (n *Normal) EventShape() tensor.Shape {
 }
 
 func (n *Normal) Variance() *G.Node {
-	two := G.NewConstant(2.0)
+	two := n.mean.Graph().Constant(G.NewF64(2.0))
 	return G.Must(G.Pow(n.stddev, two))
 }
 
@@ -238,9 +238,9 @@ func (n *Normal) Mean() *G.Node {
 }
 
 func (n *Normal) Entropy() *G.Node {
-	half := G.NewConstant(0.5)
-	twoPi := G.NewConstant(math.Pi * 2.0)
-	two := G.NewConstant(2.0)
+	half := n.mean.Graph().Constant(G.NewF64(0.5))
+	twoPi := n.mean.Graph().Constant(G.NewF64(math.Pi * 2.0))
+	two := n.mean.Graph().Constant(G.NewF64(2.0))
 
 	entropy := G.Must(G.Pow(n.stddev, two))
 	entropy = G.Must(G.HadamardProd(entropy, twoPi))
@@ -258,8 +258,18 @@ func (n *Normal) isBatch(x *G.Node) bool {
 func (n *Normal) fixShape(x *G.Node) (*G.Node, error) {
 	if x.IsScalar() && n.mean.Shape()[0] == 1 {
 		return G.Reshape(x, []int{1})
+
+	} else if x.IsMatrix() && n.mean.Shape()[0] == 1 {
+		if x.Shape()[0] == 1 {
+			// x is a 1 x N matrix, reshape it into a vector
+			return G.Reshape(x, []int{x.Shape()[1]})
+		}
+		return nil, fmt.Errorf("expected x to by a vector but got shape %v",
+			x.Shape())
+
 	} else if x.IsScalar() && n.mean.IsMatrix() {
 		return nil, fmt.Errorf("expected x to be a matrix but got scalar")
+
 	} else if x.IsMatrix() && n.mean.IsVector() {
 		if x.Shape()[0] != n.mean.Shape()[0] {
 			return nil, fmt.Errorf("expected x to have first dimension of "+
