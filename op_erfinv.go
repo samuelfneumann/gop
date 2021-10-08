@@ -65,7 +65,7 @@ func (e *erfinvOp) OverwritesInput() int { return -1 }
 
 // String returns the string representation of the struct
 func (e *erfinvOp) String() string {
-	return "Erf"
+	return "Erfinv"
 }
 
 // InferShape returns the output shape as a function of the inputs
@@ -91,7 +91,7 @@ func (e *erfinvOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
 // Hashcode returns the hash code of the receiver
 func (e *erfinvOp) Hashcode() uint32 { return SimpleHash(e) }
 
-// SymDiff constructs the symbolic derivative of the Erf
+// SymDiff constructs the symbolic derivative of the Erfinv
 func (e *erfinvOp) SymDiff(inputs G.Nodes, output,
 	grad *G.Node) (G.Nodes, error) {
 	err := CheckArity(e, len(inputs))
@@ -159,7 +159,7 @@ func (e *erfinvDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
 func (e *erfinvDiffOp) Hashcode() uint32 { return SimpleHash(e) }
 
 // String returns the string representation of the erfinvDiffOp
-func (e *erfinvDiffOp) String() string { return "ErfDiff()" }
+func (e *erfinvDiffOp) String() string { return "ErfinvDiff()" }
 
 // InferShape returns the output shape as a function of the inputs
 func (e *erfinvDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
@@ -242,7 +242,7 @@ func (e *erfinvDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 		return G.NewF32(grad * diff), nil
 	}
 
-	// inputs[0] is a tensor type
+	// inputs[0] and inputs[1] are tensor types
 	x := inputs[0].(tensor.Tensor)
 	grad := inputs[1].(tensor.Tensor)
 
@@ -299,7 +299,7 @@ func (e *erfinvDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	return ret
 }
 
-// computeErf computes the element-wise erfinv on a value
+// computeErfinv computes the element-wise erfinv on a value
 func computeErfinv(value G.Value) (G.Value, error) {
 	// Compute erfinv based on type
 	switch v := value.(type) {
@@ -357,7 +357,7 @@ func erfinvTensorAt(in tensor.Tensor, out tensor.Tensor, coords []int) error {
 			"at %v", coords)
 	}
 
-	// Erf the value
+	// Erfinv the value
 	if in.Dtype() == tensor.Float64 {
 		val = math.Erfinv(val.(float64))
 	} else if in.Dtype() == tensor.Float32 {
