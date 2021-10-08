@@ -175,7 +175,8 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
-// !!! Not tested
+// LogProb calculates the log probability of x. The shape of x is
+// treated in the same way as the Prob() method.
 func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
 	x, err := n.fixShape(x)
 	if err != nil {

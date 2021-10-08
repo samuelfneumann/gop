@@ -207,6 +207,194 @@ func TestNormalProbVec(t *testing.T) {
 	}
 }
 
+func TestNormalLogProbScalar(t *testing.T) {
+	const threshold float64 = 0.00001 // Threshold at which floats are equal
+	const tests int = 15              // Number of tests to run
+	rand.Seed(time.Now().UnixNano())
+
+	// Set the scale for mean, stddev, and sampling
+	meanScale := 2.
+	stdScale := 2.
+
+	// Min and Max number of dimensions for samples to compute the
+	// PDF of
+	const minSize = 1
+	const maxSize = 10
+
+	// Targets
+	for i := 0; i < tests; i++ {
+		// Random mean and stddev
+		stddev := math.Exp(rand.Float64()) * stdScale
+		mean := (rand.Float64() - 0.5) * meanScale
+		dist := distuv.Normal{
+			Mu:    mean,
+			Sigma: stddev,
+		}
+		size := minSize + rand.Intn(maxSize-minSize+1)
+
+		xBacking := make([]float64, size)
+		probs := make([]float64, size)
+		for j := range xBacking {
+			xBacking[j] = dist.Rand()
+			probs[j] = dist.LogProb(xBacking[j])
+		}
+
+		g := G.NewGraph()
+		stddevNode := G.NewScalar(g, tensor.Float64, G.WithName("stddev"))
+		err := G.Let(stddevNode, stddev)
+		if err != nil {
+			t.Error(err)
+		}
+
+		meanNode := G.NewScalar(g, tensor.Float64, G.WithName("mean"))
+		err = G.Let(meanNode, mean)
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := NewNormal(meanNode, stddevNode, uint64(11))
+		if err != nil {
+			t.Error(err)
+		}
+
+		var x *G.Node
+		if len(xBacking) == 1 {
+			x = G.NewScalar(g, tensor.Float64, G.WithName("scalarX"))
+			if err := G.Let(x, xBacking[0]); err != nil {
+				t.Error(err)
+			}
+		} else {
+			xT := tensor.NewDense(
+				tensor.Float64,
+				[]int{len(xBacking)},
+				tensor.WithBacking(xBacking),
+			)
+			x = G.NewVector(
+				g,
+				xT.Dtype(),
+				G.WithValue(xT),
+				G.WithName("tensorX"),
+			)
+		}
+
+		prob, err := n.LogProb(x)
+		if err != nil {
+			t.Error(err)
+		}
+		var probVal G.Value
+		G.Read(prob, &probVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		// Check output
+		probOut := probVal.Data().([]float64)
+		for j := range probOut {
+			if math.Abs(probOut[j]-probs[j]) > threshold {
+				t.Errorf("expected: %v received: %v for x: %v", probs[j],
+					probOut[j], xBacking[j])
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
+func TestNormalLogProbVec(t *testing.T) {
+	const threshold = 0.000001 // Threshold for floats to be considered equal
+	const tests int = 10
+	const scale float64 = 2.0
+
+	const minRows int = 1
+	const maxRows int = 10
+	const minCols int = 1
+	const maxCols int = 10
+
+	for i := 0; i < tests; i++ {
+		rows := minRows + rand.Intn(maxRows-minRows+1)
+		cols := minCols + rand.Intn(maxCols-minCols+1)
+		size := []int{rows}
+		sampleSize := []int{rows, cols}
+
+		meanBacking := make([]float64, rows)
+		stddevBacking := make([]float64, rows)
+		sampleBacking := make([]float64, 0, rows*cols)
+		expected := make([]float64, 0, rows*cols)
+		src := expRand.NewSource(uint64(time.Now().UnixNano()))
+		for r := 0; r < rows; r++ {
+			mean := (rand.Float64() - 0.5) * scale
+			stddev := math.Exp(rand.Float64() * scale)
+			meanBacking[r] = mean
+			stddevBacking[r] = stddev
+
+			dist := distuv.Normal{
+				Mu:    mean,
+				Sigma: stddev,
+				Src:   src,
+			}
+
+			for c := 0; c < cols; c++ {
+				sample := dist.Rand()
+				sampleBacking = append(sampleBacking, sample)
+				expected = append(expected, dist.LogProb(sample))
+			}
+		}
+
+		g := G.NewGraph()
+		meanT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(meanBacking),
+		)
+		mean := G.NewVector(g, meanT.Dtype(), G.WithValue(meanT),
+			G.WithName("mean"))
+
+		stddevT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(stddevBacking),
+		)
+		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
+			G.WithName("stddev"))
+
+		n, err := NewNormal(mean, stddev, uint64(1))
+		if err != nil {
+			t.Error(err)
+		}
+
+		samplesT := tensor.NewDense(
+			tensor.Float64,
+			sampleSize,
+			tensor.WithBacking(sampleBacking),
+		)
+		samples := G.NewMatrix(g, tensor.Float64, G.WithValue(samplesT),
+			G.WithName("samples"))
+
+		prob, err := n.LogProb(samples)
+		if err != nil {
+			t.Error(err)
+		}
+		var probVal G.Value
+		G.Read(prob, &probVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		probOut := probVal.Data().([]float64)
+
+		for j := range probOut {
+			if math.Abs(probOut[j]-expected[j]) > threshold {
+				t.Errorf("expected: %v, received: %v, x: %x", expected[j],
+					probOut[j], sampleBacking[j])
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
 // TestNormalEntropyScalar tests the Entropy() method of the Normal
 // struct given scalar mean and standard deviation
 func TestNormalEntropyScalar(t *testing.T) {
