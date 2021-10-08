@@ -13,29 +13,29 @@ import (
 
 // ToDo: figure out the type system and fix Type() methos
 
-// erfOp is the error function
-type erfOp struct{}
+// erfinvOp is the error function
+type erfinvOp struct{}
 
-// newErfOp returns a new erfOp
-func newErfOp() G.Op {
-	return &erfOp{}
+// newErfOp returns a new erfinvOp
+func newErfinvOp() G.Op {
+	return &erfinvOp{}
 }
 
 // Arity returns the number of elements this operation takes
-func (e *erfOp) Arity() int {
+func (e *erfinvOp) Arity() int {
 	return 1
 }
 
 // Type returns the type of the operation
-func (e *erfOp) Type() hm.Type {
+func (e *erfinvOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
 	a := hm.TypeVariable('a')
 	return hm.NewFnType(a, a)
 }
 
-// Do runs the erf operation
-func (e *erfOp) Do(values ...G.Value) (G.Value, error) {
+// Do runs the erfinv operation
+func (e *erfinvOp) Do(values ...G.Value) (G.Value, error) {
 	err := e.checkInputs(values...)
 	if err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -47,29 +47,29 @@ func (e *erfOp) Do(values ...G.Value) (G.Value, error) {
 
 	value := values[0]
 
-	// Compute erf based on type
-	return computeErf(value)
+	// Compute erfinv based on type
+	return computeErfinv(value)
 }
 
 // ReturnsPtr indicates whether this Op returns a pointer to its
 // output value - which is true.
-func (e *erfOp) ReturnsPtr() bool { return true }
+func (e *erfinvOp) ReturnsPtr() bool { return true }
 
 // CallsExtern returns whether this Op calls any external functions -
 // which is false
-func (e *erfOp) CallsExtern() bool { return false }
+func (e *erfinvOp) CallsExtern() bool { return false }
 
 // OverwritesInput returns the index of the input that this op
 // will overwrite
-func (e *erfOp) OverwritesInput() int { return -1 }
+func (e *erfinvOp) OverwritesInput() int { return -1 }
 
 // String returns the string representation of the struct
-func (e *erfOp) String() string {
+func (e *erfinvOp) String() string {
 	return "Erf"
 }
 
 // InferShape returns the output shape as a function of the inputs
-func (e *erfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
+func (e *erfinvOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -86,20 +86,20 @@ func (e *erfOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 }
 
 // WriteHash writes the hash of the receiver to a hash struct
-func (e *erfOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
+func (e *erfinvOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
 
 // Hashcode returns the hash code of the receiver
-func (e *erfOp) Hashcode() uint32 { return SimpleHash(e) }
+func (e *erfinvOp) Hashcode() uint32 { return SimpleHash(e) }
 
 // SymDiff constructs the symbolic derivative of the Erf
-func (e *erfOp) SymDiff(inputs G.Nodes, output,
+func (e *erfinvOp) SymDiff(inputs G.Nodes, output,
 	grad *G.Node) (G.Nodes, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("symDiff: %v", err)
 	}
 
-	diffOp := &erfDiffOp{}
+	diffOp := &erfinvDiffOp{}
 	nodes := make(G.Nodes, 1)
 
 	nodes[0], err = G.ApplyOp(diffOp, inputs[0], grad)
@@ -109,16 +109,16 @@ func (e *erfOp) SymDiff(inputs G.Nodes, output,
 
 // DiffWRT returns which inputs the operation is differentiable with
 // respect to
-func (e *erfOp) DiffWRT(inputs int) []bool {
+func (e *erfinvOp) DiffWRT(inputs int) []bool {
 	if inputs != 1 {
-		panic(fmt.Sprintf("erf operator only supports one input, got %d "+
+		panic(fmt.Sprintf("erfinv operator only supports one input, got %d "+
 			"instead", inputs))
 	}
 	return []bool{true}
 }
 
 // checkInputs returns an error if the input to this Op is invalid
-func (e *erfOp) checkInputs(inputs ...G.Value) error {
+func (e *erfinvOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(e, len(inputs)); err != nil {
 		return err
 	}
@@ -138,31 +138,31 @@ func (e *erfOp) checkInputs(inputs ...G.Value) error {
 	return nil
 }
 
-// erfDiffOp is the derivative of erf
-type erfDiffOp struct{}
+// erfinvDiffOp is the derivative of erfinv
+type erfinvDiffOp struct{}
 
 // Arity returns the number of elements this operation takes
-func (e *erfDiffOp) Arity() int { return 2 }
+func (e *erfinvDiffOp) Arity() int { return 2 }
 
 // ReturnsPtr indicates whether this Op returns a pointer to its
 // output value - which is true.
-func (e *erfDiffOp) ReturnsPtr() bool { return true }
+func (e *erfinvDiffOp) ReturnsPtr() bool { return true }
 
 // CallsExtern returns whether this Op calls any external functions -
 // which is false
-func (e *erfDiffOp) CallsExtern() bool { return false }
+func (e *erfinvDiffOp) CallsExtern() bool { return false }
 
 // WriteHash writes the hash of the receiver to a hash struct
-func (e *erfDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
+func (e *erfinvDiffOp) WriteHash(h hash.Hash) { fmt.Fprint(h, e.String()) }
 
 // Hashcode returns the hash code of the receiver
-func (e *erfDiffOp) Hashcode() uint32 { return SimpleHash(e) }
+func (e *erfinvDiffOp) Hashcode() uint32 { return SimpleHash(e) }
 
-// String returns the string representation of the erfDiffOp
-func (e *erfDiffOp) String() string { return "ErfDiff()" }
+// String returns the string representation of the erfinvDiffOp
+func (e *erfinvDiffOp) String() string { return "ErfDiff()" }
 
 // InferShape returns the output shape as a function of the inputs
-func (e *erfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
+func (e *erfinvDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 	err := CheckArity(e, len(inputs))
 	if err != nil {
 		return nil, fmt.Errorf("inferShape: %v", err)
@@ -179,7 +179,7 @@ func (e *erfDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 }
 
 // Type returns the type of the operation
-func (e *erfDiffOp) Type() hm.Type {
+func (e *erfinvDiffOp) Type() hm.Type {
 	// All pointwise unary operations have this type:
 	// op :: (Arithable a) => a -> a
 	a := hm.TypeVariable('a')
@@ -188,10 +188,10 @@ func (e *erfDiffOp) Type() hm.Type {
 
 // OverwritesInput returns the index of the input that this op
 // will overwrite - this op does not overwrite input.
-func (e *erfDiffOp) OverwritesInput() int { return -1 }
+func (e *erfinvDiffOp) OverwritesInput() int { return -1 }
 
 // checkInputs returns an error if the input to this Op is invalid
-func (e *erfDiffOp) checkInputs(inputs ...G.Value) error {
+func (e *erfinvDiffOp) checkInputs(inputs ...G.Value) error {
 	if err := CheckArity(e, len(inputs)); err != nil {
 		return err
 	}
@@ -218,8 +218,8 @@ func (e *erfDiffOp) checkInputs(inputs ...G.Value) error {
 	return nil
 }
 
-// Do computes the derivative of the erf
-func (e *erfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
+// Do computes the derivative of the erfinv
+func (e *erfinvDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	err := e.checkInputs(inputs...)
 	if err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -230,13 +230,15 @@ func (e *erfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 	case *G.F64:
 		grad := float64(*(inputs[1].(*G.F64)))
 		z := float64(*v)
-		diff := (2 / math.Sqrt(math.Pi)) * math.Exp(-math.Pow(z, 2))
+		diff := 0.5 * math.Sqrt(math.Pi) * math.Exp(math.Pow(math.Erfinv(z),
+			2))
 		return G.NewF64(grad * diff), nil
 
 	case *G.F32:
 		grad := float32(*(inputs[1].(*G.F32)))
 		z := float32(*v)
-		diff := (2 / math32.Sqrt(math.Pi)) * math32.Exp(-math32.Pow(z, 2))
+		diff := 0.5 * math32.Sqrt(math32.Pi) * math32.Exp(
+			math32.Pow(math32.Erfinv(z), 2))
 		return G.NewF32(grad * diff), nil
 	}
 
@@ -257,9 +259,9 @@ func (e *erfDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 }
 
 // f64Kernel computes the derivative on a tensor of dtype float64
-func (e *erfDiffOp) f64Kernel(shape tensor.Shape, inputData,
+func (e *erfinvDiffOp) f64Kernel(shape tensor.Shape, inputData,
 	gradData tensor.Tensor) *tensor.Dense {
-	scale := 2 / math.Sqrt(math.Pi)
+	scale := math.Sqrt(math.Pi) / 2.0
 	x := inputData.Data().([]float64)
 	grad := gradData.Data().([]float64)
 
@@ -269,7 +271,7 @@ func (e *erfDiffOp) f64Kernel(shape tensor.Shape, inputData,
 	)
 
 	for i, elem := range x {
-		newGrad := grad[i] * scale * math.Exp(-math.Pow(elem, 2))
+		newGrad := grad[i] * scale * math.Exp(math.Pow(math.Erfinv(elem), 2))
 		ret.Set(i, newGrad)
 	}
 
@@ -277,9 +279,9 @@ func (e *erfDiffOp) f64Kernel(shape tensor.Shape, inputData,
 }
 
 // f32Kernel computes the derivative on a tensor of dtype float32
-func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
+func (e *erfinvDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	gradData tensor.Tensor) *tensor.Dense {
-	scale := float32(2.0 / math.Sqrt(math.Pi))
+	scale := math32.Sqrt(math32.Pi) / float32(2.0)
 	x := inputData.Data().([]float32)
 	grad := gradData.Data().([]float32)
 
@@ -289,7 +291,7 @@ func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	)
 
 	for i, elem := range x {
-		exp := -math32.Pow(elem, 2)
+		exp := math32.Pow(math32.Erfinv(elem), 2)
 		newGrad := grad[i] * scale * math32.Exp(exp)
 		ret.Set(i, newGrad)
 	}
@@ -297,20 +299,20 @@ func (e *erfDiffOp) f32Kernel(shape tensor.Shape, inputData,
 	return ret
 }
 
-// computeErf computes the element-wise erf on a value
-func computeErf(value G.Value) (G.Value, error) {
-	// Compute erf based on type
+// computeErf computes the element-wise erfinv on a value
+func computeErfinv(value G.Value) (G.Value, error) {
+	// Compute erfinv based on type
 	switch v := value.(type) {
 	case *G.F64:
-		return G.NewF64(math.Erf(float64(*v))), nil
+		return G.NewF64(math.Erfinv(float64(*v))), nil
 
 	case *G.F32:
-		val := math32.Erf(float32(*v))
+		val := math32.Erfinv(float32(*v))
 		return G.NewF32(val), nil
 
 	case tensor.Tensor:
 		if len(v.Shape()) == 0 {
-			return nil, fmt.Errorf("do: cannot compute erf on empty tensor")
+			return nil, fmt.Errorf("do: cannot compute erfinv on empty tensor")
 		}
 
 		// Create the new output tensor
@@ -320,13 +322,13 @@ func computeErf(value G.Value) (G.Value, error) {
 		)
 
 		iter := v.Iterator()
-		// Go through each element of the tensor and erf it in place
+		// Go through each element of the tensor and erfinv it in place
 		for !iter.Done() {
-			// Get the coordinates of the element to erf
+			// Get the coordinates of the element to erfinv
 			coords := iter.Coord()
 
-			// Erf the elements of v and store in out
-			err := erfTensorAt(v, out, coords)
+			// Erfinv v, storing results in out
+			err := erfinvTensorAt(v, out, coords)
 			if err != nil {
 				return nil, fmt.Errorf("do: %v", err)
 			}
@@ -341,33 +343,33 @@ func computeErf(value G.Value) (G.Value, error) {
 		return out, nil
 
 	default:
-		return nil, fmt.Errorf("do: unable to compute erf on type %T", v)
+		return nil, fmt.Errorf("do: unable to compute erfinv on type %T", v)
 	}
 }
 
-// erfTensorAt computes the erf of tensor v at coords, placing the
+// erfinvTensorAt computes erfinv of tensor v at coords, storing the
 // result in out at coords
-func erfTensorAt(in tensor.Tensor, out tensor.Tensor, coords []int) error {
+func erfinvTensorAt(in tensor.Tensor, out tensor.Tensor, coords []int) error {
 	// Get the value at the next coordinates
 	val, err := in.At(coords...)
 	if err != nil {
-		return fmt.Errorf("erfTensorAt: could not access element "+
+		return fmt.Errorf("erfinvTensorAt: could not access element "+
 			"at %v", coords)
 	}
 
 	// Erf the value
 	if in.Dtype() == tensor.Float64 {
-		val = math.Erf(val.(float64))
+		val = math.Erfinv(val.(float64))
 	} else if in.Dtype() == tensor.Float32 {
-		val = math32.Erf(val.(float32))
+		val = math32.Erfinv(val.(float32))
 	} else {
-		return fmt.Errorf("erfTensorAt: invalid data type %T", in)
+		return fmt.Errorf("erfinvTensorAt: invalid data type %v", in.Dtype())
 	}
 
 	// Set the value
 	err = out.SetAt(val, coords...)
 	if err != nil {
-		return fmt.Errorf("erfTensorAt: could not set element "+
+		return fmt.Errorf("erfinvTensorAt: could not set element "+
 			"at %v", coords)
 
 	}

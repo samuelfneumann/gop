@@ -98,6 +98,13 @@ func Argsort(x *G.Node, axis int) (*G.Node, error) {
 	return G.ApplyOp(op, x)
 }
 
+// Erfinv computes the element-wise inverse error function
+func Erfinv(x *G.Node) (*G.Node, error) {
+	op := newErfinvOp()
+
+	return G.ApplyOp(op, x)
+}
+
 // Erf computes the element-wise error function
 func Erf(x *G.Node) (*G.Node, error) {
 	op := newErfOp()

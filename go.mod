@@ -6,6 +6,7 @@ require (
 	github.com/chewxy/hm v1.0.0
 	github.com/chewxy/math32 v1.0.8
 	github.com/samuelfneumann/gocolour v1.0.1-0.20211005211147-c025647b4563
+	github.com/samuelfneumann/math32 v1.0.9-0.20211008153538-a14850a7d407
 	github.com/samuelfneumann/top v0.0.0-20211005211821-2b48defd0c25
 	golang.org/x/exp v0.0.0-20191002040644-a1355ae1e2c3
 	gonum.org/v1/gonum v0.9.3
