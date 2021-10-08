@@ -154,7 +154,6 @@ func (c *clampDiffOp) InferShape(inputs ...G.DimSizer) (tensor.Shape, error) {
 		return nil, fmt.Errorf("inferShape: %v", err)
 	}
 
-	fmt.Println("Diff InferShape Called")
 	return shapes[0], nil
 }
 
@@ -183,13 +182,20 @@ func (c *clampDiffOp) Do(inputs ...G.Value) (G.Value, error) {
 		return nil, fmt.Errorf("do: %v", err)
 	}
 
-	in := inputs[0].(tensor.Tensor)
+	x := inputs[0].(tensor.Tensor)
+	dzdy := inputs[1].(tensor.Tensor)
 
+	var dydx G.Value
 	if !c.op.passGradient {
-		return top.ClampB(in, c.op.min, c.op.max)
+		dydx, err = top.ClampB(x, c.op.min, c.op.max)
 	} else {
-		return tensor.Ones(in.Dtype(), in.Shape()...), nil
+		dydx, err = tensor.Ones(x.Dtype(), x.Shape()...), nil
 	}
+	if err != nil {
+		return nil, fmt.Errorf("do: could not clampb: %v", err)
+	}
+
+	return tensor.Mul(dzdy, dydx)
 }
 
 // checkInputs returns an error if inputs in an invalid input to

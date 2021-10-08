@@ -264,6 +264,7 @@ func TestF32Clamp(t *testing.T) {
 			tensor.Float32,
 			len(inTensor.Shape()),
 			G.WithValue(inTensor),
+			G.WithName("in"),
 		)
 
 		// Construct the clamp operation and save the outputted value
