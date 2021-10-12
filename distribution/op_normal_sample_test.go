@@ -14,8 +14,8 @@ func TestNormalSample(t *testing.T) {
 
 	meanT := tensor.NewDense(
 		tensor.Float64,
-		[]int{2, 2, 2},
-		tensor.WithBacking([]float64{0, 1, 2, 3, 4, 5, 6, 7}),
+		[]int{2},
+		tensor.WithBacking([]float64{0, 1}),
 	)
 	mean := G.NewTensor(
 		g,
@@ -27,8 +27,8 @@ func TestNormalSample(t *testing.T) {
 
 	stdT := tensor.NewDense(
 		tensor.Float64,
-		[]int{2, 2, 2},
-		tensor.WithBacking([]float64{0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1}),
+		[]int{2},
+		tensor.WithBacking([]float64{0.1, 0.1}),
 	)
 	std := G.NewTensor(
 		g,
@@ -48,8 +48,13 @@ func TestNormalSample(t *testing.T) {
 
 	vm := G.NewTapeMachine(g)
 	vm.RunAll()
-
 	fmt.Println(sampled)
+	fmt.Println(sampled.Shape())
+	vm.Reset()
+
+	vm.RunAll()
+	fmt.Println(sampled)
+	fmt.Println(sampled.Shape())
 
 	vm.Reset()
 	vm.Close()

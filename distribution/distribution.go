@@ -53,16 +53,17 @@ type Distribution interface {
 	StdDev() *G.Node
 	Variance() *G.Node
 
-	// Sample generates a shape shaped sample or batch of
-	// samples if the distribution is batched. This operation is
-	// not differentiable.
-	Sample(shape ...int) (*G.Node, error)
+	// Sample returns a node that generates samples
+	// from some distribution each time the node is passed. This
+	// function is not differentiable.
+	Sample(samples int) (*G.Node, error)
 
-	// RSample generates a shape shaped sample or batch of samples
-	// if the distribution is batched. This operation is differentiable.
-	RSample(shape ...int) (*G.Node, error)
+	// Rsample returns a node that generates reparameterized samples
+	// from some distribution each time the node is passed. This
+	// function is differentiable.
+	Rsample(samples int) (*G.Node, error)
 
-	// SampleN generates n samples or n batches of samples if the
-	// distribution is batched. This operation is not differentiable.
-	SampleN(n int) (*G.Node, error)
+	// Returns whether the distribution has reparameterized samples or
+	// not
+	HasRsample() bool
 }

@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"fmt"
 	"math"
 	rand "math/rand"
 	"testing"
@@ -913,6 +914,67 @@ func TestNormalCdfinvVec(t *testing.T) {
 					probOut[j], probBacking[j])
 			}
 		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
+func TestNormalRsampleVec(t *testing.T) {
+	const tests int = 1       // Number of random tests to run
+	const scale float64 = 2.0 // Scale of distributions' mean and stddev
+
+	const minRows int = 1
+	const maxRows int = 10
+
+	for i := 0; i < tests; i++ {
+		rows := minRows + rand.Intn(maxRows-minRows+1)
+		size := []int{rows}
+
+		meanBacking := make([]float64, rows)
+		stddevBacking := make([]float64, rows)
+		for r := 0; r < rows; r++ {
+			mean := (rand.Float64() - 0.5) * scale
+			stddev := math.Exp(rand.Float64() * scale)
+			meanBacking[r] = mean
+			stddevBacking[r] = stddev
+		}
+
+		g := G.NewGraph()
+		meanT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(meanBacking),
+		)
+		mean := G.NewVector(g, meanT.Dtype(), G.WithValue(meanT),
+			G.WithName("mean"))
+
+		stddevT := tensor.NewDense(
+			tensor.Float64,
+			size,
+			tensor.WithBacking(stddevBacking),
+		)
+		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
+			G.WithName("stddev"))
+
+		n, err := NewNormal(mean, stddev, uint64(1))
+		if err != nil {
+			t.Error(err)
+		}
+
+		sample, err := n.Rsample(2)
+		if err != nil {
+			t.Error(err)
+		}
+		var sampleVal G.Value
+		G.Read(sample, &sampleVal)
+
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+
+		fmt.Println(stddev.Value())
+		fmt.Println(mean.Value())
+		fmt.Println(sampleVal)
 
 		vm.Reset()
 		vm.Close()

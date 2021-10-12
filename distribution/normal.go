@@ -5,12 +5,23 @@ import (
 	"math"
 
 	"github.com/samuelfneumann/gop"
-	"golang.org/x/exp/rand"
 
-	"gonum.org/v1/gonum/stat/distuv"
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
+
+// ! Alternative implementation would allow any shaped input and just
+// ! always consider first dimension as the batch dimension for
+// ! inputs. E.g. a mean/stddev of shape (3, 4, 12) then an input
+// ! of shape (10, 3, 4, 12) would have 10 samples in the batch
+
+// TODO: Make batch dimension be dimension 0 and allow input of any size
+// this will be more consistent with the sample procedures which always use
+// dimension 0 as the batch dimension. As well, the NormalRand function
+// allows any input mean and stddev, but ALWAYS uses batch dim as dim 0.
+// The Normal in this file should do this as well.
+
+// TODO: make work with float32
 
 // Normal is a univariate normal distribution, which may hold
 // a batch of normal distributions simultaneously. If a Normal is
@@ -47,9 +58,11 @@ type Normal struct {
 	stddev    *G.Node
 	stddevVal G.Value
 
-	seed uint64
+	zeroMean   *G.Node
+	unitStddev *G.Node
+	stdNormal  *G.Node
 
-	rng distuv.Normal
+	seed uint64
 }
 
 // NewNormal returns a new Normal.
@@ -67,19 +80,17 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 			stddev.Shape())
 	}
 
-	src := rand.NewSource(seed)
-
 	var err error
 	if mean.IsScalar() {
 		mean, err = G.Reshape(mean, []int{1})
 		if err != nil {
 			return nil, fmt.Errorf("newNormal: could not expand mean to "+
-				"shape (1, 1): %v", err)
+				"shape (1): %v", err)
 		}
 		stddev, err = G.Reshape(stddev, []int{1})
 		if err != nil {
 			return nil, fmt.Errorf("newNormal: could not expand stddev to "+
-				"shape (1, 1): %v", err)
+				"shape (1): %v", err)
 		}
 	}
 
@@ -87,11 +98,6 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 		mean:   mean,
 		stddev: stddev,
 		seed:   seed,
-		rng: distuv.Normal{
-			Mu:    0.0,
-			Sigma: 1.0,
-			Src:   src,
-		},
 	}
 
 	G.Read(normal.mean, &normal.meanVal)
@@ -351,6 +357,65 @@ func (n *Normal) Entropy() *G.Node {
 	return entropy
 }
 
+func (n *Normal) HasRsample() bool { return true }
+
+// TODO: Rsample uses batch dim as dim 0, make all other functions
+// TODO: use this as well
+func (n *Normal) Rsample(samples int) (*G.Node, error) {
+	if n.zeroMean == nil || n.unitStddev == nil {
+		// Lazy instantiation of zero mean and unit variance
+		size := tensor.ProdInts(n.mean.Shape())
+
+		zeroMean := tensor.NewDense(
+			tensor.Float64,
+			n.mean.Shape(),
+			tensor.WithBacking(make([]float64, size)),
+		)
+		n.zeroMean = G.NewTensor(
+			n.mean.Graph(),
+			zeroMean.Dtype(),
+			zeroMean.Dims(),
+			G.WithValue(zeroMean),
+			G.WithName("zeroMean"),
+		)
+
+		unitStddev := tensor.NewDense(
+			tensor.Float64,
+			n.stddev.Shape(),
+			tensor.WithBacking(ones(size)),
+		)
+		n.unitStddev = G.NewTensor(
+			n.stddev.Graph(),
+			unitStddev.Dtype(),
+			unitStddev.Dims(),
+			G.WithValue(unitStddev),
+			G.WithName("unitStddev"),
+		)
+		n.stdNormal = G.Must(NormalRand(n.mean, n.stddev, n.seed, samples))
+		fmt.Println("SHAPES:", n.stdNormal.Shape(), n.stddev.Shape())
+	}
+
+	// Reparameterization trick
+	// var out *G.Node
+	// if samples > 1 {
+	// 	out = G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
+	// 		[]byte{0}))
+	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
+	// } else {
+	// 	out = G.Must(G.HadamardProd(n.stdNormal, n.stddev))
+	// 	out = G.Must(G.Add(out, n.mean))
+	// }
+
+	// return out, nil
+	return nil, nil
+}
+
+// TODO: Sample uses batch dim as dim 0, make all other functions
+// TODO: use this as well
+func (n *Normal) Sample(samples int) (*G.Node, error) {
+	return NormalRand(n.mean, n.stddev, n.seed, samples)
+}
+
 // isBatch returns whether x is a batch of samples to calculate some
 // method on
 func (n *Normal) isBatch(x *G.Node) bool {
@@ -388,7 +453,7 @@ func (n *Normal) fixShape(x *G.Node) (*G.Node, error) {
 			"size %v but got shape %v", n.mean.Shape()[0],
 			x.Shape())
 
-	} else if x.IsVector() && n.mean.Shape()[0] == 1 {
+	} else if len(x.Shape()) == 1 && n.mean.Shape()[0] == 1 {
 		return x, nil
 
 	} else if x.IsMatrix() && n.mean.Shape()[0] > 1 &&

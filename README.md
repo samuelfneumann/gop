@@ -54,3 +54,5 @@ Gather           | Yes
 * [ ] Gather
 
 * [ ] Permute/RollAxis
+
+* [ ] StopGradient

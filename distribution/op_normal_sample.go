@@ -28,6 +28,10 @@ func newNormalSampleOp(dt tensor.Dtype, seed uint64, numSamples int,
 			dt)
 	}
 
+	if numSamples < 1 {
+		return nil, fmt.Errorf("cannot samples %v < 1 samples", numSamples)
+	}
+
 	source := rand.NewSource(seed)
 
 	return &normalSampleOp{
@@ -45,13 +49,18 @@ func newNormalSampleOp(dt tensor.Dtype, seed uint64, numSamples int,
 
 func (n *normalSampleOp) Arity() int { return 2 }
 
+// TODO: check over this, is it correct?
 func (n *normalSampleOp) Type() hm.Type {
-	tt := G.TensorType{
+	in := G.TensorType{
 		Dims: n.shape.Dims(),
 		Of:   n.dt,
 	}
+	out := G.TensorType{
+		Dims: n.shape.Dims() + 1,
+		Of:   n.dt,
+	}
 
-	return hm.NewFnType(tt, tt, tt)
+	return hm.NewFnType(out, in, in)
 }
 
 func (n *normalSampleOp) InferShape(...G.DimSizer) (tensor.Shape, error) {
