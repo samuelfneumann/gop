@@ -9,13 +9,6 @@ import (
 	"gorgonia.org/tensor"
 )
 
-// ! Alternative implementation would allow any shaped input and just
-// ! always consider first dimension as the batch dimension for
-// ! inputs. E.g. a mean/stddev of shape (3, 4, 12) then an input
-// ! of shape (10, 3, 4, 12) would have 10 samples in the batch
-
-// TODO: Fix documentation -> shape is now arbitrary and dim = 0 is batch dim
-
 // TODO: make work with float32
 
 // Normal is a univariate normal distribution, which may hold
@@ -49,6 +42,9 @@ import (
 //
 // 1. (n_1, n_2, ..., n_M)
 // 2. (a, n_1, n_2, ..., n_M) for ∀a ∈ ℕ-{0}
+//
+// Normal supports the following data types:
+// - tensor.Float64
 type Normal struct {
 	mean    *G.Node
 	meanVal G.Value
@@ -69,6 +65,15 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
 			"have the same shape but got %v and %v", mean.Shape(),
 			stddev.Shape())
+	}
+
+	if mean.Dtype() != stddev.Dtype() {
+		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
+			"have the same data type but got %v and %v", mean.Dtype(),
+			stddev.Dtype())
+	} else if mean.Dtype() != tensor.Float64 {
+		return nil, fmt.Errorf("newNormal: data type %v unsupported",
+			mean.Dtype())
 	}
 
 	var err error
