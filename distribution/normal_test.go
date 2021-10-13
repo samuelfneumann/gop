@@ -13,6 +13,190 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TestNormalSampleScalar tests to ensure that consecutive runs of a
+// graph on which Sample() has been called on a Normal with a scalar
+// mean and stddev result in different values being sampled.
+func TestNormalSampleScalar(t *testing.T) {
+	const threshold float64 = 0.00001 // Threshold at which floats are equal
+	const tests int = 30              // Number of tests to run
+	rand.Seed(time.Now().UnixNano())
+
+	// Set the scale for mean, stddev, and sampling
+	meanScale := 2.
+	stdScale := 2.
+
+	const minBatchSize int = 1  // Minimum size of batch
+	const maxBatchSize int = 50 // Maxium size of batch
+
+	for i := 0; i < tests; i++ {
+		// Random mean and stddev
+		stddev := math.Exp(rand.Float64()) * stdScale
+		mean := (rand.Float64() - 0.5) * meanScale
+
+		g := G.NewGraph()
+		stddevNode := G.NewScalar(g, tensor.Float64, G.WithName("stddev"))
+		err := G.Let(stddevNode, stddev)
+		if err != nil {
+			t.Error(err)
+		}
+
+		meanNode := G.NewScalar(g, tensor.Float64, G.WithName("mean"))
+		err = G.Let(meanNode, mean)
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := NewNormal(meanNode, stddevNode, uint64(11))
+		if err != nil {
+			t.Error(err)
+		}
+
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		sample, err := n.Sample(batchSize)
+		if err != nil {
+			t.Error(err)
+		}
+		var sampleVal G.Value
+		G.Read(sample, &sampleVal)
+
+		vm := G.NewTapeMachine(g)
+
+		// Run through the graph once and record the sampled values
+		vm.RunAll()
+		sample1, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Run through the graph again and record the next sampled values
+		vm.RunAll()
+		sample2, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Ensure the sampled values are different
+		sample1Data := sample1.(tensor.Tensor).Data().([]float64)
+		sample2Data := sample2.(tensor.Tensor).Data().([]float64)
+		for i := range sample1Data {
+			// Assume sampled values are equal unless proved otherwise
+			flag := true
+			if math.Abs(sample1Data[i]-sample2Data[i]) > threshold {
+				flag = false
+			}
+
+			if flag {
+				t.Error("consecutive calls to Sample() resulted in the " +
+					"same data sampled")
+			}
+		}
+
+		vm.Close()
+	}
+}
+
+// TestNormalSampleTensor tests to ensure that consecutive runs of a
+// graph on which Sample() has been called on a Normal with a tensor
+// mean and stddev result in different values being sampled.
+func TestNormalSampleTensor(t *testing.T) {
+	const threshold float64 = 0.000001 // Threshold to consider floats equal
+	const tests int = 20               // Number of tests to run
+	const scale float64 = 2.0
+
+	const minSize int = 1       // Minimum number of dims in mean/stddev
+	const maxSize int = 5       // Maximum number of dims in mean/stddev
+	const minDimSize int = 1    // Minimum size of each dim in mean/stddev
+	const maxDimSize int = 10   // Maximum size of each dim in mean/stddev
+	const minBatchSize int = 1  // Minimum size of batch
+	const maxBatchSize int = 10 // Maxium size of batch
+
+	rand.Seed(time.Now().UnixNano())
+
+	for i := 0; i < tests; i++ {
+		dims := minSize + rand.Intn(maxSize-minSize) + 1
+		shape := randInt(dims, minDimSize, maxDimSize)
+
+		numDists := tensor.ProdInts(shape)
+
+		meanBacking := make([]float64, numDists)
+		stddevBacking := make([]float64, numDists)
+		for r := 0; r < numDists; r++ {
+			mean := (rand.Float64() - 0.5) * scale
+			stddev := math.Exp(rand.Float64() * scale)
+			meanBacking[r] = mean
+			stddevBacking[r] = stddev
+		}
+
+		g := G.NewGraph()
+		meanT := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(meanBacking),
+		)
+		mean := G.NewTensor(g, meanT.Dtype(), meanT.Dims(), G.WithValue(meanT),
+			G.WithName("mean"))
+
+		stddevT := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(stddevBacking),
+		)
+		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
+			G.WithValue(stddevT), G.WithName("stddev"))
+
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
+		if err != nil {
+			t.Error(err)
+		}
+
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		sample, err := n.Sample(batchSize)
+		if err != nil {
+			t.Error(err)
+		}
+		var sampleVal G.Value
+		G.Read(sample, &sampleVal)
+
+		vm := G.NewTapeMachine(g)
+
+		// Run through the graph once and record the sampled values
+		vm.RunAll()
+		sample1, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Run through the graph again and record the next sampled values
+		vm.RunAll()
+		sample2, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Ensure the sampled values are different
+		sample1Data := sample1.(tensor.Tensor).Data().([]float64)
+		sample2Data := sample2.(tensor.Tensor).Data().([]float64)
+		for i := range sample1Data {
+			// Assume sampled values are equal unless proved otherwise
+			flag := true
+			if math.Abs(sample1Data[i]-sample2Data[i]) > threshold {
+				flag = false
+			}
+
+			if flag {
+				t.Error("consecutive calls to Sample() resulted in the " +
+					"same data sampled")
+			}
+		}
+
+		vm.Close()
+	}
+}
+
 // TestNormalProbScalar tests the Prob method of the Normal struct
 // on arbitrary, random scalar inputs. All tests are completely
 // randomized.

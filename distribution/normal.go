@@ -66,7 +66,6 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 			"have the same shape but got %v and %v", mean.Shape(),
 			stddev.Shape())
 	}
-
 	if mean.Dtype() != stddev.Dtype() {
 		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
 			"have the same data type but got %v and %v", mean.Dtype(),
