@@ -13,8 +13,8 @@ import (
 	"gorgonia.org/tensor"
 )
 
-// TestNormalProbScalar tests the Prob function of the Normal struct
-// with a scalar mean and standard deviation. All tests are completely
+// TestNormalProbScalar tests the Prob method of the Normal struct
+// on arbitrary, random scalar inputs. All tests are completely
 // randomized.
 func TestNormalProbScalar(t *testing.T) {
 	const threshold float64 = 0.00001 // Threshold at which floats are equal
@@ -110,8 +110,8 @@ func TestNormalProbScalar(t *testing.T) {
 	}
 }
 
-// TestNormalProbVec tests the Prob function of the Normal struct
-// with a vector mean and standard deviation. All tests are completely
+// TestNormalProbVec tests the Prob method of the Normal struct
+// on arbitrary, random vector inputs. All tests are completely
 // randomized.
 func TestNormalProbVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
@@ -171,7 +171,7 @@ func TestNormalProbVec(t *testing.T) {
 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
 			G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -208,8 +208,8 @@ func TestNormalProbVec(t *testing.T) {
 	}
 }
 
-// TestNormalProbTensor tests the Prob function of the Normal struct
-// with a tensor mean and standard deviation. All tests are completely
+// TestNormalProbTensor tests the Prob method of the Normal struct
+// on arbitrary, random tensor inputs. All tests are completely
 // randomized.
 func TestNormalProbTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
@@ -277,7 +277,7 @@ func TestNormalProbTensor(t *testing.T) {
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
 			G.WithValue(stddevT), G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -314,6 +314,9 @@ func TestNormalProbTensor(t *testing.T) {
 	}
 }
 
+// TestNormalLogProbScalar tests the LogProb method of the Normal struct
+// on arbitrary, random scalar inputs. All tests are completely
+// randomized.
 func TestNormalLogProbScalar(t *testing.T) {
 	const threshold float64 = 0.00001 // Threshold at which floats are equal
 	const tests int = 15              // Number of tests to run
@@ -408,6 +411,9 @@ func TestNormalLogProbScalar(t *testing.T) {
 	}
 }
 
+// TestNormalLogProbVec tests the LogProb method of the Normal struct
+// on arbitrary, random vector inputs. All tests are completely
+// randomized.
 func TestNormalLogProbVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 10
@@ -466,7 +472,7 @@ func TestNormalLogProbVec(t *testing.T) {
 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
 			G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -503,6 +509,9 @@ func TestNormalLogProbVec(t *testing.T) {
 	}
 }
 
+// TestNormalLogProbTensor tests the LogProb method of the Normal struct
+// on arbitrary, random tensor inputs. All tests are completely
+// randomized.
 func TestNormalLogProbTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
@@ -569,7 +578,7 @@ func TestNormalLogProbTensor(t *testing.T) {
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
 			G.WithValue(stddevT), G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -606,8 +615,9 @@ func TestNormalLogProbTensor(t *testing.T) {
 	}
 }
 
-// TestNormalEntropyScalar tests the Entropy() method of the Normal
-// struct given scalar mean and standard deviation
+// TestNormalEntropyScalar tests the Entropy method of the Normal struct
+// on arbitrary, random scalar inputs. All tests are completely
+// randomized.
 func TestNormalEntropyScalar(t *testing.T) {
 	const threshold float64 = 0.000001
 	const tests int = 30
@@ -632,7 +642,7 @@ func TestNormalEntropyScalar(t *testing.T) {
 			t.Error(err)
 		}
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -660,8 +670,9 @@ func TestNormalEntropyScalar(t *testing.T) {
 	}
 }
 
-// TestNormalEntropyVec tests the Entropy() method of the Normal
-// struct given vector mean and standard deviation
+// TestNormalEntropyVec tests the Entropy method of the Normal struct
+// on arbitrary, random vector inputs. All tests are completely
+// randomized.
 func TestNormalEntropyVec(t *testing.T) {
 	// floats a and b are considered equal if |a-b| > threshold
 	const threshold float64 = 0.000001
@@ -718,7 +729,7 @@ func TestNormalEntropyVec(t *testing.T) {
 			G.WithName("stddev"),
 		)
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -742,6 +753,9 @@ func TestNormalEntropyVec(t *testing.T) {
 	}
 }
 
+// TestNormalEntropyTensor tests the Entropy method of the Normal struct
+// on arbitrary, random tensor inputs. All tests are completely
+// randomized.
 func TestNormalEntropyTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
@@ -804,7 +818,7 @@ func TestNormalEntropyTensor(t *testing.T) {
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
 			G.WithValue(stddevT), G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -830,8 +844,9 @@ func TestNormalEntropyTensor(t *testing.T) {
 	}
 }
 
-// TestNormalCdfScalar tests the Cdf() method of the Normal struct
-// with scalar mean and standard deviation
+// TestNormalCdfScalar tests the Cdf method of the Normal struct
+// on arbitrary, random scalar inputs. All tests are completely
+// randomized.
 func TestNormalCdfScalar(t *testing.T) {
 	const threshold float64 = 0.00001 // Threshold at which floats are equal
 	const tests int = 30              // Number of tests to run
@@ -925,8 +940,9 @@ func TestNormalCdfScalar(t *testing.T) {
 	}
 }
 
-// TestNormalCdfVec tests the Cdf() method of the Normal struct
-// with vector mean and standard deviation
+// TestNormalCdfVec tests the Cdf method of the Normal struct
+// on arbitrary, random vector inputs. All tests are completely
+// randomized.
 func TestNormalCdfVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15
@@ -985,7 +1001,7 @@ func TestNormalCdfVec(t *testing.T) {
 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
 			G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1022,6 +1038,9 @@ func TestNormalCdfVec(t *testing.T) {
 	}
 }
 
+// TestNormalCdfTensor tests the Cdf method of the Normal struct
+// on arbitrary, random tensor inputs. All tests are completely
+// randomized.
 func TestNormalCdfTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
@@ -1088,7 +1107,7 @@ func TestNormalCdfTensor(t *testing.T) {
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
 			G.WithValue(stddevT), G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1125,8 +1144,9 @@ func TestNormalCdfTensor(t *testing.T) {
 	}
 }
 
-// TestNormalCdfScalar tests the Cdf() method of the Normal struct
-// with scalar mean and standard deviation
+// TestNormalCdfinvScalar tests the Cdfinv method of the Normal struct
+// on arbitrary, random scalar inputs. All tests are completely
+// randomized.
 func TestNormalCdfinvScalar(t *testing.T) {
 	const threshold float64 = 0.00001 // Threshold at which floats are equal
 	const tests int = 30              // Number of tests to run
@@ -1227,6 +1247,9 @@ func TestNormalCdfinvScalar(t *testing.T) {
 	}
 }
 
+// TestNormalCdfinvVec tests the Cdfinv method of the Normal struct
+// on arbitrary, random vector inputs. All tests are completely
+// randomized.
 func TestNormalCdfinvVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15       // Number of random tests to run
@@ -1288,7 +1311,7 @@ func TestNormalCdfinvVec(t *testing.T) {
 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
 			G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1325,6 +1348,9 @@ func TestNormalCdfinvVec(t *testing.T) {
 	}
 }
 
+// TestNormalCdfinvTensor tests the Cdfinv method of the Normal struct
+// on arbitrary, random tensor inputs. All tests are completely
+// randomized.
 func TestNormalCdfinvTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
@@ -1394,7 +1420,7 @@ func TestNormalCdfinvTensor(t *testing.T) {
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
 			G.WithValue(stddevT), G.WithName("stddev"))
 
-		n, err := NewNormal(mean, stddev, uint64(1))
+		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1468,7 +1494,7 @@ func TestNormalCdfinvTensor(t *testing.T) {
 // 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
 // 			G.WithName("stddev"))
 
-// 		n, err := NewNormal(mean, stddev, uint64(1))
+// 		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
 // 		if err != nil {
 // 			t.Error(err)
 // 		}
