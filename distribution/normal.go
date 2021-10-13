@@ -20,9 +20,10 @@ import (
 
 // Normal is a univariate normal distribution, which may hold
 // a batch of normal distributions simultaneously. If a Normal is
-// created with a vector mean and vector standard deviation, then
+// created with a tensor mean and tensor standard deviation, then
 // each elemnt of the mean and standard deviation vectors defines a
-// different distribution. That is, if:
+// different distribution element-wise. For example, consider if we
+// use a 1-tensor for the mean and standard deviation:
 //
 //		mean   := [m_1, m_2, ..., m_N]
 //		stddev := [s_1, s_2, ..., s_N]
@@ -31,21 +32,23 @@ import (
 //
 //		[𝒩(m_1, s_1), 𝒩(m_2, s_2), ..., 𝒩(m_N, s_N)]
 //
-// And each operation on the Normal should use an input with N
-// dimensions.
-//
 // If the mean and standard deviation are scalars or vectors of 1
 // element, then a single Normal distribution is used.
 //
-// The Normal can compute all its methods on batches of input data.
-// If the Normal holds a single normal distribution (the mean and stddev
-// are scalars or 1-vectors), then any vector input will be considered
-// a batch upon which to compute the method. If the Normal holds N > 1
-// normal distributions (the mean and stddev are N>1-vectors), then
-// any matrix input will be considered a batch upon which to compute,
-// with the batch dimension being the column dimension. The row
-// dimension is considered as separate data for each of the N
-// distributions, and the input matrix must have N rows exactly.
+// The shape of the mean and standard deviation tensors consitutie
+// the shape of the Normal. E.g. if the mean has shape (3, 2, 5), then
+// so does the Normal.
+//
+// Any input to any method of the Normal must have a shape that is
+// consistent with the shape of the Normal. That is, the input must
+// have the exact same shape as the Normal, except for possibly the
+// batch dimension, which is dimension 0 always. If a batch dimension
+// is present, then the method will be run on each sample in the batch.
+// Given a Normal with shape (n_1, n_2, ..., n_M), the following are
+// legal shapes for an input:
+//
+// 1. (n_1, n_2, ..., n_M)
+// 2. (a, n_1, n_2, ..., n_M) for ∀a ∈ ℕ-{0}
 type Normal struct {
 	mean    *G.Node
 	meanVal G.Value
@@ -102,26 +105,24 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 // will be calculated element-wise for each value in the vector x with
 // the same mean and standard deviation.
 //
-// If the mean and standard deviation of the receiver are vectors,
+// If the mean and standard deviation of the receiver are tensors,
 // then the receiver is assumed to hold N normal distributions,
 // where N is the number of elements in the mean or standard
-// deviation vectors respectively. In this case, an input vector x
-// should have the same size as the mean and standard
-// deviation vectors. If not, an error is returned.
-// If x is a matrix, then it should have
-// the same number of rows as there are elements in the mean and
-// standard deviation vectors. The number of columns of x is considered
-// as the batch size of the samples to calculate the density of.
-// That is if:
+// deviation vectors respectively. In this case, an input tensor x
+// should have the same shape as the mean and standard
+// deviation tensors, except for perhaps the batch dimension (dim 0).
+// If not, an error is returned.
+// For example, if the mean and stddev of the Normal are vectors:
 //
 //		mean   := [m_1, m_2, ..., m_N]
 //		stddev := [s_1, s_2, ..., s_N]
 //
 // Then x should be of the form:
-//		x 	   := ⎡x_11, x_12, ..., x_1M⎤
-//				  ⎢x_21, x_22, ..., x_2M⎥
-//				  ⎢... ... ... ..., ... ⎥
-//				  ⎣x_N1, x_N2, ... x_NM ⎦
+//		x 	   := ⎡x_11, x_21, ..., x_N1⎤ ⎫
+//				  ⎢x_12, x_22, ..., x_N2⎥ ⎥
+//				  ⎢... ... ... ..., ... ⎥ ⎬ ← Batch Dimension
+//				  ⎢... ... ... ..., ... ⎥ ⎥
+//				  ⎣x_1M, x_2M, ... x_NM ⎦ ⎭
 //
 // In such a case, there are M samples considered to be in a batch, and
 // there are N separate univariate normal distributions.
@@ -319,7 +320,7 @@ func (n *Normal) Entropy() *G.Node {
 	return entropy
 }
 
-// func (n *Normal) HasRsample() bool { return true }
+func (n *Normal) HasRsample() bool { return true }
 
 // // TODO: Rsample uses batch dim as dim 0, make all other functions
 // // TODO: use this as well
@@ -372,11 +373,9 @@ func (n *Normal) Entropy() *G.Node {
 // 	return nil, nil
 // }
 
-// // TODO: Sample uses batch dim as dim 0, make all other functions
-// // TODO: use this as well
-// func (n *Normal) Sample(samples int) (*G.Node, error) {
-// 	return NormalRand(n.mean, n.stddev, n.seed, samples)
-// }
+func (n *Normal) Sample(samples int) (*G.Node, error) {
+	return NormalRand(n.mean, n.stddev, n.seed, samples)
+}
 
 // isBatch returns whether x is a batch of samples to calculate some
 // method on
