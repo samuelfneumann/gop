@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/samuelfneumann/gop"
-
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
@@ -15,11 +14,7 @@ import (
 // ! inputs. E.g. a mean/stddev of shape (3, 4, 12) then an input
 // ! of shape (10, 3, 4, 12) would have 10 samples in the batch
 
-// TODO: Make batch dimension be dimension 0 and allow input of any size
-// this will be more consistent with the sample procedures which always use
-// dimension 0 as the batch dimension. As well, the NormalRand function
-// allows any input mean and stddev, but ALWAYS uses batch dim as dim 0.
-// The Normal in this file should do this as well.
+// TODO: Fix documentation -> shape is now arbitrary and dim = 0 is batch dim
 
 // TODO: make work with float32
 
@@ -58,25 +53,18 @@ type Normal struct {
 	stddev    *G.Node
 	stddevVal G.Value
 
-	zeroMean   *G.Node
-	unitStddev *G.Node
-	stdNormal  *G.Node
+	// zeroMean   *G.Node
+	// unitStddev *G.Node
+	// stdNormal  *G.Node
 
 	seed uint64
 }
 
 // NewNormal returns a new Normal.
 func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
-	if !stddev.IsScalar() && !stddev.IsVector() {
-		return nil, fmt.Errorf("newNormal: stddev must be a scalar or vector")
-	}
-	if !mean.IsScalar() && !mean.IsVector() {
-		return nil, fmt.Errorf("newNormal: mean must be a scalar or vector")
-	}
-	if (mean.IsScalar() && !stddev.IsScalar()) || (!mean.IsScalar() &&
-		stddev.IsScalar()) {
-		return nil, fmt.Errorf("newNormal: mean and stddev must have the "+
-			"same shape but got mean %v stddev %v", mean.Shape(),
+	if !mean.Shape().Eq(stddev.Shape()) {
+		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
+			"have the same shape but got %v and %v", mean.Shape(),
 			stddev.Shape())
 	}
 
@@ -143,29 +131,19 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 		return nil, fmt.Errorf("prob: %v", err)
 	}
 
-	if x.IsScalar() {
-		x, err = G.Reshape(x, []int{1})
-		if err != nil {
-			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
-		}
-	}
-
 	two := x.Graph().Constant(G.NewF64(2.0))
 	negativeHalf := x.Graph().Constant(G.NewF64(-0.5))
 	rootTwoPi := x.Graph().Constant(G.NewF64(math.Sqrt(math.Pi * 2.)))
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
-		var batchDim byte = 0
-		if n.mean.Shape()[0] > 1 {
-			batchDim = byte(1)
-		}
-		x = G.Must(G.BroadcastSub(x, n.mean, nil, []byte{batchDim}))
-		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, []byte{batchDim}))
+		batchDim := []byte{0}
+		x = G.Must(G.BroadcastSub(x, n.mean, nil, batchDim))
+		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
 		x = G.Must(G.Pow(x, two))
 		x = G.Must(G.HadamardProd(negativeHalf, x))
 		x = G.Must(G.Exp(x))
-		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, []byte{batchDim}))
+		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
 		x = G.Must(G.HadamardDiv(x, rootTwoPi))
 	} else {
 		// Calculate probability of single sample
@@ -186,14 +164,7 @@ func (n *Normal) Prob(x *G.Node) (*G.Node, error) {
 func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
 	x, err := n.fixShape(x)
 	if err != nil {
-		return nil, fmt.Errorf("prob: %v", err)
-	}
-
-	if x.IsScalar() {
-		x, err = G.Reshape(x, []int{1})
-		if err != nil {
-			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
-		}
+		return nil, fmt.Errorf("logProb: %v", err)
 	}
 
 	two := x.Graph().Constant(G.NewF64(2.0))
@@ -203,10 +174,7 @@ func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
-		var batchDim []byte = []byte{0}
-		if n.mean.Shape()[0] > 1 {
-			batchDim = []byte{1}
-		}
+		batchDim := []byte{0}
 		x = G.Must(G.BroadcastSub(x, n.mean, nil, batchDim))
 		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
 		x = G.Must(G.Pow(x, two))
@@ -249,10 +217,7 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
-		var batchDim []byte = []byte{0}
-		if n.mean.Shape()[0] > 1 {
-			batchDim = []byte{1}
-		}
+		batchDim := []byte{0}
 		x = G.Must(G.BroadcastSub(x, n.mean, nil, batchDim))
 		x = G.Must(G.HadamardDiv(x, rootTwo))
 		x = G.Must(G.BroadcastHadamardDiv(x, n.stddev, nil, batchDim))
@@ -294,10 +259,7 @@ func (n *Normal) Cdfinv(p *G.Node) (*G.Node, error) {
 
 	if n.isBatch(p) {
 		// Calculate probability of batch
-		var batchDim []byte = []byte{0}
-		if n.mean.Shape()[0] > 1 {
-			batchDim = []byte{1}
-		}
+		batchDim := []byte{0}
 		p = G.Must(G.HadamardProd(two, p))
 		p = G.Must(G.Sub(p, one))
 		p = G.Must(gop.Erfinv(p))
@@ -357,64 +319,64 @@ func (n *Normal) Entropy() *G.Node {
 	return entropy
 }
 
-func (n *Normal) HasRsample() bool { return true }
+// func (n *Normal) HasRsample() bool { return true }
 
-// TODO: Rsample uses batch dim as dim 0, make all other functions
-// TODO: use this as well
-func (n *Normal) Rsample(samples int) (*G.Node, error) {
-	if n.zeroMean == nil || n.unitStddev == nil {
-		// Lazy instantiation of zero mean and unit variance
-		size := tensor.ProdInts(n.mean.Shape())
+// // TODO: Rsample uses batch dim as dim 0, make all other functions
+// // TODO: use this as well
+// func (n *Normal) Rsample(samples int) (*G.Node, error) {
+// 	if n.zeroMean == nil || n.unitStddev == nil {
+// 		// Lazy instantiation of zero mean and unit variance
+// 		size := tensor.ProdInts(n.mean.Shape())
 
-		zeroMean := tensor.NewDense(
-			tensor.Float64,
-			n.mean.Shape(),
-			tensor.WithBacking(make([]float64, size)),
-		)
-		n.zeroMean = G.NewTensor(
-			n.mean.Graph(),
-			zeroMean.Dtype(),
-			zeroMean.Dims(),
-			G.WithValue(zeroMean),
-			G.WithName("zeroMean"),
-		)
+// 		zeroMean := tensor.NewDense(
+// 			tensor.Float64,
+// 			n.mean.Shape(),
+// 			tensor.WithBacking(make([]float64, size)),
+// 		)
+// 		n.zeroMean = G.NewTensor(
+// 			n.mean.Graph(),
+// 			zeroMean.Dtype(),
+// 			zeroMean.Dims(),
+// 			G.WithValue(zeroMean),
+// 			G.WithName("zeroMean"),
+// 		)
 
-		unitStddev := tensor.NewDense(
-			tensor.Float64,
-			n.stddev.Shape(),
-			tensor.WithBacking(ones(size)),
-		)
-		n.unitStddev = G.NewTensor(
-			n.stddev.Graph(),
-			unitStddev.Dtype(),
-			unitStddev.Dims(),
-			G.WithValue(unitStddev),
-			G.WithName("unitStddev"),
-		)
-		n.stdNormal = G.Must(NormalRand(n.mean, n.stddev, n.seed, samples))
-		fmt.Println("SHAPES:", n.stdNormal.Shape(), n.stddev.Shape())
-	}
+// 		unitStddev := tensor.NewDense(
+// 			tensor.Float64,
+// 			n.stddev.Shape(),
+// 			tensor.WithBacking(ones(size)),
+// 		)
+// 		n.unitStddev = G.NewTensor(
+// 			n.stddev.Graph(),
+// 			unitStddev.Dtype(),
+// 			unitStddev.Dims(),
+// 			G.WithValue(unitStddev),
+// 			G.WithName("unitStddev"),
+// 		)
+// 		n.stdNormal = G.Must(NormalRand(n.mean, n.stddev, n.seed, samples))
+// 		fmt.Println("SHAPES:", n.stdNormal.Shape(), n.stddev.Shape())
+// 	}
 
-	// Reparameterization trick
-	// var out *G.Node
-	// if samples > 1 {
-	// 	out = G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
-	// 		[]byte{0}))
-	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
-	// } else {
-	// 	out = G.Must(G.HadamardProd(n.stdNormal, n.stddev))
-	// 	out = G.Must(G.Add(out, n.mean))
-	// }
+// 	// Reparameterization trick
+// 	// var out *G.Node
+// 	// if samples > 1 {
+// 	// 	out = G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
+// 	// 		[]byte{0}))
+// 	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
+// 	// } else {
+// 	// 	out = G.Must(G.HadamardProd(n.stdNormal, n.stddev))
+// 	// 	out = G.Must(G.Add(out, n.mean))
+// 	// }
 
-	// return out, nil
-	return nil, nil
-}
+// 	// return out, nil
+// 	return nil, nil
+// }
 
-// TODO: Sample uses batch dim as dim 0, make all other functions
-// TODO: use this as well
-func (n *Normal) Sample(samples int) (*G.Node, error) {
-	return NormalRand(n.mean, n.stddev, n.seed, samples)
-}
+// // TODO: Sample uses batch dim as dim 0, make all other functions
+// // TODO: use this as well
+// func (n *Normal) Sample(samples int) (*G.Node, error) {
+// 	return NormalRand(n.mean, n.stddev, n.seed, samples)
+// }
 
 // isBatch returns whether x is a batch of samples to calculate some
 // method on
@@ -426,42 +388,24 @@ func (n *Normal) isBatch(x *G.Node) bool {
 // method. It returns an error indicating if x is of an invalid shape
 // which could not be adjusted.
 func (n *Normal) fixShape(x *G.Node) (*G.Node, error) {
-	// Normal always works with vectors. If an input meand or stddev
-	// is given as a scalar, it is converted to a 1-vector.
-	//
-	// n.mean is always a vector. If n.mean.Shape() == []int{1}, then
-	// it is analogous to a scalar. If n.mean.Shape()[0] > 1, then it
-	// is a vector.
 	if x.IsScalar() && n.mean.Shape()[0] == 1 {
 		return G.Reshape(x, []int{1})
 
-	} else if x.IsMatrix() && n.mean.Shape()[0] == 1 {
-		if x.Shape()[0] == 1 {
-			// x is a 1 x N matrix, reshape it into a vector
-			return G.Reshape(x, []int{x.Shape()[1]})
-		}
-		return nil, fmt.Errorf("expected x to by a vector but got shape %v",
-			x.Shape())
-
-	} else if x.IsScalar() && n.mean.Shape()[0] > 1 {
-		return nil, fmt.Errorf("expected x to be a vector or matrix but " +
-			"got scalar")
-
-	} else if x.IsMatrix() && n.mean.Shape()[0] > 1 &&
-		x.Shape()[0] != n.mean.Shape()[0] {
-		return nil, fmt.Errorf("expected x to have first dimension of "+
-			"size %v but got shape %v", n.mean.Shape()[0],
-			x.Shape())
-
 	} else if len(x.Shape()) == 1 && n.mean.Shape()[0] == 1 {
-		return x, nil
+		// When distribution shape was inputted as a scalar, then a
+		// vector input x indicates a batch of samples -> reshape
+		// so batch dims = 0 and shape of samples = dim 1
+		return G.Reshape(x, []int{x.Shape()[0], 1})
 
-	} else if x.IsMatrix() && n.mean.Shape()[0] > 1 &&
-		n.mean.Shape()[0] == x.Shape()[0] {
-		return x, nil
+	} else if n.isBatch(x) && !tensor.Shape(x.Shape()[1:]).Eq(n.Shape()) {
+		msg := "expected shape to match distribution shape %v at all " +
+			"dimensions except batch (dim 0) but got x shape %v"
+		return nil, fmt.Errorf(msg, n.Shape(), x.Shape())
+
+	} else if !n.isBatch(x) && !n.Shape().Eq(x.Shape()) {
+		msg := "expected shape to match distribution shape %v but got %v"
+		return nil, fmt.Errorf(msg, n.Shape(), x.Shape())
 	}
 
-	return nil, fmt.Errorf("could not adjust shape of x expected shape "+
-		"compatible with mean shape %v but got x shape %v", n.mean.Shape(),
-		x.Shape())
+	return x, nil
 }
