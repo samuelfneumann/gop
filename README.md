@@ -34,24 +34,16 @@ any integer type properly.
 
 The following is a list of operations implemented:
 
-Operation Name   |   SymDiff?   |   AutoDiff?
------------------|--------------|--------------
-Argsort          | No           | No
-Error Function   | Yes          | No
-Clamp/Clip       | Yes          | No
-Repeat           | Yes          | No
-
-The following is a list of planned operations that will be implemented soon:
-
-Operation Name   |   Differentiable?
------------------|-------------------
-Gather           | Yes
+Operation Name           |   SymDiff?   |   AutoDiff?
+-------------------------|--------------|--------------
+Argsort                  | No           | No
+Error Function           | Yes          | No
+Inverse Error Function   | Yes          | No
+Clamp/Clip               | Yes          | No
+Repeat                   | Yes          | No
+Gather                   | In progress  | No
 
 ## ToDo
-
-* [ ] RepeatN - repeats row i N_i times along some axis
-
-* [ ] Gather
 
 * [ ] Permute/RollAxis
 
