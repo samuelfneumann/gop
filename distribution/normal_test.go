@@ -16,21 +16,22 @@ import (
 // TestNormalSampleScalar tests to ensure that consecutive runs of a
 // graph on which Sample() has been called on a Normal with a scalar
 // mean and stddev result in different values being sampled.
-func TestNormalSampleScalar(t *testing.T) {
-	const threshold float64 = 0.00001 // Threshold at which floats are equal
-	const tests int = 30              // Number of tests to run
+func TestNormalRsampleScalar(t *testing.T) {
+	const threshold float64 = 0.0000001 // Threshold at which floats are equal
+	const tests int = 30                // Number of tests to run
 	rand.Seed(time.Now().UnixNano())
 
 	// Set the scale for mean, stddev, and sampling
-	meanScale := 2.
-	stdScale := 2.
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 0.001
 
 	const minBatchSize int = 1  // Minimum size of batch
 	const maxBatchSize int = 50 // Maxium size of batch
 
 	for i := 0; i < tests; i++ {
 		// Random mean and stddev
-		stddev := math.Exp(rand.Float64()) * stdScale
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
 		mean := (rand.Float64() - 0.5) * meanScale
 
 		g := G.NewGraph()
@@ -46,7 +47,94 @@ func TestNormalSampleScalar(t *testing.T) {
 			t.Error(err)
 		}
 
-		n, err := NewNormal(meanNode, stddevNode, uint64(11))
+		n, err := NewNormal(meanNode, stddevNode,
+			uint64(time.Now().UnixNano()))
+		if err != nil {
+			t.Error(err)
+		}
+
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		sample, err := n.Rsample(batchSize)
+		if err != nil {
+			t.Error(err)
+		}
+		var sampleVal G.Value
+		G.Read(sample, &sampleVal)
+
+		vm := G.NewTapeMachine(g)
+
+		// Run through the graph once and record the sampled values
+		vm.RunAll()
+		sample1, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Run through the graph again and record the next sampled values
+		vm.RunAll()
+		sample2, err := G.CloneValue(sampleVal)
+		if err != nil {
+			t.Error(err)
+		}
+		vm.Reset()
+
+		// Ensure the sampled values are different
+		sample1Data := sample1.(tensor.Tensor).Data().([]float64)
+		sample2Data := sample2.(tensor.Tensor).Data().([]float64)
+		for i := range sample1Data {
+			// Assume sampled values are equal unless proved otherwise
+			flag := true
+			if math.Abs(sample1Data[i]-sample2Data[i]) > threshold {
+				flag = false
+			}
+
+			if flag {
+				t.Error("consecutive calls to Rsample() resulted in the " +
+					"same data sampled")
+			}
+		}
+
+		vm.Close()
+	}
+}
+
+// TestNormalSampleScalar tests to ensure that consecutive runs of a
+// graph on which Sample() has been called on a Normal with a scalar
+// mean and stddev result in different values being sampled.
+func TestNormalSampleScalar(t *testing.T) {
+	const threshold float64 = 0.0000001 // Threshold at which floats are equal
+	const tests int = 30                // Number of tests to run
+	rand.Seed(time.Now().UnixNano())
+
+	// Set the scale for mean, stddev, and sampling
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 0.001
+
+	const minBatchSize int = 1  // Minimum size of batch
+	const maxBatchSize int = 50 // Maxium size of batch
+
+	for i := 0; i < tests; i++ {
+		// Random mean and stddev
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
+		mean := (rand.Float64() - 0.5) * meanScale
+
+		g := G.NewGraph()
+		stddevNode := G.NewScalar(g, tensor.Float64, G.WithName("stddev"))
+		err := G.Let(stddevNode, stddev)
+		if err != nil {
+			t.Error(err)
+		}
+
+		meanNode := G.NewScalar(g, tensor.Float64, G.WithName("mean"))
+		err = G.Let(meanNode, mean)
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := NewNormal(meanNode, stddevNode,
+			uint64(time.Now().UnixNano()))
 		if err != nil {
 			t.Error(err)
 		}
@@ -101,9 +189,10 @@ func TestNormalSampleScalar(t *testing.T) {
 // graph on which Sample() has been called on a Normal with a tensor
 // mean and stddev result in different values being sampled.
 func TestNormalSampleTensor(t *testing.T) {
-	const threshold float64 = 0.000001 // Threshold to consider floats equal
-	const tests int = 20               // Number of tests to run
+	const threshold float64 = 0.00000001 // Threshold to consider floats equal
+	const tests int = 20                 // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1       // Minimum number of dims in mean/stddev
 	const maxSize int = 5       // Maximum number of dims in mean/stddev
@@ -124,7 +213,7 @@ func TestNormalSampleTensor(t *testing.T) {
 		stddevBacking := make([]float64, numDists)
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -206,8 +295,9 @@ func TestNormalProbScalar(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Set the scale for mean, stddev, and sampling
-	meanScale := 2.
-	stdScale := 2.
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 0.001
 
 	// Min and Max number of dimensions for samples to compute the
 	// PDF of
@@ -217,7 +307,7 @@ func TestNormalProbScalar(t *testing.T) {
 	// Targets
 	for i := 0; i < tests; i++ {
 		// Random mean and stddev
-		stddev := math.Exp(rand.Float64()) * stdScale
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
 		mean := (rand.Float64() - 0.5) * meanScale
 		dist := distuv.Normal{
 			Mu:    mean,
@@ -301,6 +391,7 @@ func TestNormalProbVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minNumDists int = 1
 	const maxNumDists int = 10
@@ -320,7 +411,7 @@ func TestNormalProbVec(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -399,6 +490,7 @@ func TestNormalProbTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1    // Minimum number of dims in mean/stddev
 	const maxSize int = 5    // Maximum number of dims in mean/stddev
@@ -426,7 +518,7 @@ func TestNormalProbTensor(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -507,8 +599,9 @@ func TestNormalLogProbScalar(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Set the scale for mean, stddev, and sampling
-	meanScale := 2.
-	stdScale := 2.
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 2.
 
 	// Min and Max number of dimensions for samples to compute the
 	// PDF of
@@ -518,7 +611,7 @@ func TestNormalLogProbScalar(t *testing.T) {
 	// Targets
 	for i := 0; i < tests; i++ {
 		// Random mean and stddev
-		stddev := math.Exp(rand.Float64()) * stdScale
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
 		mean := (rand.Float64() - 0.5) * meanScale
 		dist := distuv.Normal{
 			Mu:    mean,
@@ -602,6 +695,7 @@ func TestNormalLogProbVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 10
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minNumDists int = 1
 	const maxNumDists int = 10
@@ -621,7 +715,7 @@ func TestNormalLogProbVec(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -700,6 +794,7 @@ func TestNormalLogProbTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1    // Minimum number of dims in mean/stddev
 	const maxSize int = 5    // Maximum number of dims in mean/stddev
@@ -727,7 +822,7 @@ func TestNormalLogProbTensor(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -807,10 +902,11 @@ func TestNormalEntropyScalar(t *testing.T) {
 	const tests int = 30
 	const loc float64 = 3
 	const scale float64 = 1.5
+	const stdOffset float64 = 0.001
 
 	for i := 0; i < tests; i++ {
 		meanBacking := (rand.Float64() - 0.5) * loc
-		stdBacking := math.Exp(rand.Float64()) * scale
+		stdBacking := (math.Exp(rand.Float64()) + stdOffset) * scale
 
 		g := G.NewGraph()
 
@@ -861,8 +957,9 @@ func TestNormalEntropyVec(t *testing.T) {
 	// floats a and b are considered equal if |a-b| > threshold
 	const threshold float64 = 0.000001
 
-	const tests int = 15      // Number of tests to run
-	const scale float64 = 1.5 // Scale at which to sample
+	const tests int = 15     // Number of tests to run
+	const scale float64 = 2. // Scale at which to sample
+	const stdOffset float64 = 0.001
 
 	// Maximum size for mean and stddev vectors
 	const maxSize int = 32
@@ -875,7 +972,7 @@ func TestNormalEntropyVec(t *testing.T) {
 		stdBackings := make([]float64, size)
 		entropyTarget := make([]float64, size)
 		for j := range meanBackings {
-			stdBackings[j] = math.Exp(rand.Float64()) * scale
+			stdBackings[j] = (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBackings[j] = rand.Float64() * scale
 			targetDist := distuv.Normal{
 				Mu:    meanBackings[j],
@@ -944,6 +1041,7 @@ func TestNormalEntropyTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1    // Minimum number of dims in mean/stddev
 	const maxSize int = 5    // Maximum number of dims in mean/stddev
@@ -969,7 +1067,7 @@ func TestNormalEntropyTensor(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -1037,8 +1135,9 @@ func TestNormalCdfScalar(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Set the scale for mean, stddev, and sampling
-	meanScale := 2.
-	stdScale := 2.
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 0.001
 
 	// Min and Max number of dimensions for samples to compute the
 	// PDF of
@@ -1048,7 +1147,7 @@ func TestNormalCdfScalar(t *testing.T) {
 	// Targets
 	for i := 0; i < tests; i++ {
 		// Random mean and stddev
-		stddev := math.Exp(rand.Float64()) * stdScale
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
 		mean := (rand.Float64() - 0.5) * meanScale
 		dist := distuv.Normal{
 			Mu:    mean,
@@ -1131,6 +1230,7 @@ func TestNormalCdfVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minNumDists int = 1
 	const maxNumDists int = 10
@@ -1150,7 +1250,7 @@ func TestNormalCdfVec(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -1229,6 +1329,7 @@ func TestNormalCdfTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1    // Minimum number of dims in mean/stddev
 	const maxSize int = 5    // Maximum number of dims in mean/stddev
@@ -1256,7 +1357,7 @@ func TestNormalCdfTensor(t *testing.T) {
 		src := expRand.NewSource(uint64(time.Now().UnixNano()))
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -1337,8 +1438,9 @@ func TestNormalCdfinvScalar(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	// Set the scale for mean, stddev, and sampling
-	meanScale := 2.
-	stdScale := 2.
+	const meanScale float64 = 2.
+	const stdScale float64 = 2.
+	const stdOffset float64 = 0.001
 
 	// Min and Maprob number of dimensions for samples to compute the
 	// PDF of
@@ -1354,7 +1456,7 @@ func TestNormalCdfinvScalar(t *testing.T) {
 	}
 	for i := 0; i < tests; i++ {
 		// Random mean and stddev
-		stddev := math.Exp(rand.Float64()) * stdScale
+		stddev := (math.Exp(rand.Float64()) + stdOffset) * stdScale
 		mean := (rand.Float64() - 0.5) * meanScale
 		size := minSize + rand.Intn(maprobSize-minSize+1)
 
@@ -1438,6 +1540,7 @@ func TestNormalCdfinvVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15       // Number of random tests to run
 	const scale float64 = 2.0  // Scale of distributions' mean and stddev
+	const stdOffset float64 = 0.001
 
 	const minNumDists int = 1
 	const maxNumDists int = 10
@@ -1462,7 +1565,7 @@ func TestNormalCdfinvVec(t *testing.T) {
 		}
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -1539,6 +1642,7 @@ func TestNormalCdfinvTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
+	const stdOffset float64 = 0.001
 
 	const minSize int = 1    // Minimum number of dims in mean/stddev
 	const maxSize int = 5    // Maximum number of dims in mean/stddev
@@ -1571,7 +1675,7 @@ func TestNormalCdfinvTensor(t *testing.T) {
 		}
 		for r := 0; r < numDists; r++ {
 			mean := (rand.Float64() - 0.5) * scale
-			stddev := math.Exp(rand.Float64() * scale)
+			stddev := (math.Exp(rand.Float64()) + stdOffset) * scale
 			meanBacking[r] = mean
 			stddevBacking[r] = stddev
 		}
@@ -1640,64 +1744,3 @@ func TestNormalCdfinvTensor(t *testing.T) {
 		vm.Close()
 	}
 }
-
-// func TestNormalRsampleVec(t *testing.T) {
-// 	const tests int = 1       // Number of random tests to run
-// 	const scale float64 = 2.0 // Scale of distributions' mean and stddev
-
-// 	const minRows int = 1
-// 	const maxRows int = 10
-
-// 	for i := 0; i < tests; i++ {
-// 		rows := minRows + rand.Intn(maxRows-minRows+1)
-// 		size := []int{rows}
-
-// 		meanBacking := make([]float64, rows)
-// 		stddevBacking := make([]float64, rows)
-// 		for r := 0; r < rows; r++ {
-// 			mean := (rand.Float64() - 0.5) * scale
-// 			stddev := math.Exp(rand.Float64() * scale)
-// 			meanBacking[r] = mean
-// 			stddevBacking[r] = stddev
-// 		}
-
-// 		g := G.NewGraph()
-// 		meanT := tensor.NewDense(
-// 			tensor.Float64,
-// 			size,
-// 			tensor.WithBacking(meanBacking),
-// 		)
-// 		mean := G.NewVector(g, meanT.Dtype(), G.WithValue(meanT),
-// 			G.WithName("mean"))
-
-// 		stddevT := tensor.NewDense(
-// 			tensor.Float64,
-// 			size,
-// 			tensor.WithBacking(stddevBacking),
-// 		)
-// 		stddev := G.NewVector(g, stddevT.Dtype(), G.WithValue(stddevT),
-// 			G.WithName("stddev"))
-
-// 		n, err := NewNormal(mean, stddev, uint64(time.Now().UnixNano()))
-// 		if err != nil {
-// 			t.Error(err)
-// 		}
-
-// 		sample, err := n.Rsample(2)
-// 		if err != nil {
-// 			t.Error(err)
-// 		}
-// 		var sampleVal G.Value
-// 		G.Read(sample, &sampleVal)
-
-// 		vm := G.NewTapeMachine(g)
-// 		vm.RunAll()
-
-// 		fmt.Println(stddev.Value())
-// 		fmt.Println(mean.Value())
-// 		fmt.Println(sampleVal)
-
-// 		vm.Reset()
-// 		vm.Close()
-// 	}
-// }

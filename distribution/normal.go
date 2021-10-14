@@ -3,6 +3,7 @@ package distribution
 import (
 	"fmt"
 	"math"
+	"os"
 
 	"github.com/samuelfneumann/gop"
 	G "gorgonia.org/gorgonia"
@@ -52,9 +53,9 @@ type Normal struct {
 	stddev    *G.Node
 	stddevVal G.Value
 
-	// zeroMean   *G.Node
-	// unitStddev *G.Node
-	// stdNormal  *G.Node
+	zeroMean   *G.Node
+	unitStddev *G.Node
+	stdNormal  *G.Node
 
 	seed uint64
 }
@@ -326,56 +327,59 @@ func (n *Normal) Entropy() *G.Node {
 
 func (n *Normal) HasRsample() bool { return true }
 
-// // TODO: Rsample uses batch dim as dim 0, make all other functions
-// // TODO: use this as well
-// func (n *Normal) Rsample(samples int) (*G.Node, error) {
-// 	if n.zeroMean == nil || n.unitStddev == nil {
-// 		// Lazy instantiation of zero mean and unit variance
-// 		size := tensor.ProdInts(n.mean.Shape())
+func (n *Normal) Rsample(samples int) (*G.Node, error) {
+	if n.zeroMean == nil || n.unitStddev == nil {
+		// Lazy instantiation of zero mean and unit variance
+		size := tensor.ProdInts(n.mean.Shape())
 
-// 		zeroMean := tensor.NewDense(
-// 			tensor.Float64,
-// 			n.mean.Shape(),
-// 			tensor.WithBacking(make([]float64, size)),
-// 		)
-// 		n.zeroMean = G.NewTensor(
-// 			n.mean.Graph(),
-// 			zeroMean.Dtype(),
-// 			zeroMean.Dims(),
-// 			G.WithValue(zeroMean),
-// 			G.WithName("zeroMean"),
-// 		)
+		zeroMean := tensor.NewDense(
+			tensor.Float64,
+			n.mean.Shape(),
+			tensor.WithBacking(make([]float64, size)),
+		)
+		n.zeroMean = G.NewTensor(
+			n.mean.Graph(),
+			n.mean.Dtype(),
+			n.mean.Dims(),
+			G.WithValue(zeroMean),
+			G.WithName(gop.UnixNano("zeroMean")),
+		)
 
-// 		unitStddev := tensor.NewDense(
-// 			tensor.Float64,
-// 			n.stddev.Shape(),
-// 			tensor.WithBacking(ones(size)),
-// 		)
-// 		n.unitStddev = G.NewTensor(
-// 			n.stddev.Graph(),
-// 			unitStddev.Dtype(),
-// 			unitStddev.Dims(),
-// 			G.WithValue(unitStddev),
-// 			G.WithName("unitStddev"),
-// 		)
-// 		n.stdNormal = G.Must(NormalRand(n.mean, n.stddev, n.seed, samples))
-// 		fmt.Println("SHAPES:", n.stdNormal.Shape(), n.stddev.Shape())
-// 	}
+		unitStddev := tensor.NewDense(
+			tensor.Float64,
+			n.stddev.Shape(),
+			tensor.WithBacking(ones(size)),
+		)
+		n.unitStddev = G.NewTensor(
+			n.stddev.Graph(),
+			unitStddev.Dtype(),
+			unitStddev.Dims(),
+			G.WithValue(unitStddev),
+			G.WithName(gop.UnixNano("unitStddev")),
+		)
+		var err error
+		n.stdNormal, err = NormalRand(n.zeroMean, n.unitStddev, n.seed,
+			samples)
+		if err != nil {
+			return nil, fmt.Errorf("rsample: could not sample from "+
+				"standard normal: %v", err)
+		}
+	}
 
-// 	// Reparameterization trick
-// 	// var out *G.Node
-// 	// if samples > 1 {
-// 	// 	out = G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
-// 	// 		[]byte{0}))
-// 	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
-// 	// } else {
-// 	// 	out = G.Must(G.HadamardProd(n.stdNormal, n.stddev))
-// 	// 	out = G.Must(G.Add(out, n.mean))
-// 	// }
-
-// 	// return out, nil
-// 	return nil, nil
-// }
+	fmt.Fprintf(os.Stderr, "Rsample not finished implementation yet\n")
+	return n.stdNormal, nil
+	// // Reparameterization trick
+	// if samples > 1 {
+	// 	out := G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
+	// 		[]byte{0}))
+	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
+	// 	return out, nil
+	// } else {
+	// 	out := G.Must(G.HadamardProd(n.stdNormal, n.stddev))
+	// 	out = G.Must(G.Add(out, n.mean))
+	// 	return out, nil
+	// }
+}
 
 func (n *Normal) Sample(samples int) (*G.Node, error) {
 	return NormalRand(n.mean, n.stddev, n.seed, samples)
