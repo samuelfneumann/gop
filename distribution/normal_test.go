@@ -69,7 +69,7 @@ func TestNormalRsampleTensor(t *testing.T) {
 			t.Error(err)
 		}
 
-		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize)
 		sample, err := n.Rsample(batchSize)
 		if err != nil {
 			t.Error(err)
@@ -157,7 +157,7 @@ func TestNormalRsampleScalar(t *testing.T) {
 			t.Error(err)
 		}
 
-		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize)
 		sample, err := n.Rsample(batchSize)
 		if err != nil {
 			t.Error(err)
@@ -255,7 +255,7 @@ func TestNormalSampleScalar(t *testing.T) {
 			t.Error(err)
 		}
 
-		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize)
 		sample, err := n.Sample(batchSize)
 		if err != nil {
 			t.Error(err)
@@ -368,7 +368,7 @@ func TestNormalSampleTensor(t *testing.T) {
 			t.Error(err)
 		}
 
-		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
+		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize)
 		sample, err := n.Sample(batchSize)
 		if err != nil {
 			t.Error(err)

@@ -407,7 +407,9 @@ func (n *Normal) Rsample(m int) (*G.Node, error) {
 		out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
 		return out, nil
 	} else {
-		fmt.Println("HERE")
+		// First remove batch dimension 0
+		stdNormal = G.Must(G.Reshape(stdNormal, n.Shape()))
+
 		out = G.Must(G.HadamardProd(stdNormal, n.stddev))
 		out = G.Must(G.Add(out, n.mean))
 		return out, nil
