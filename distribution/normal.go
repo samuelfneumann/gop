@@ -65,7 +65,8 @@ func NewNormal(mean, stddev *G.Node, seed uint64) (Distribution, error) {
 		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
 			"have the same data type but got %v and %v", mean.Dtype(),
 			stddev.Dtype())
-	} else if mean.Dtype() != tensor.Float64 {
+	} else if mean.Dtype() != tensor.Float64 ||
+		mean.Dtype() != tensor.Float32 {
 		return nil, fmt.Errorf("newNormal: data type %v unsupported",
 			mean.Dtype())
 	}
