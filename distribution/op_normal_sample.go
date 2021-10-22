@@ -13,8 +13,9 @@ import (
 	"gorgonia.org/tensor"
 )
 
-// TODO: Make work with float32
-
+// normalSampleOp is an operation that samples from a normal
+// distribution whenever the node is passed through. The normalSampleOp
+// is not differentiable.
 type normalSampleOp struct {
 	dt         tensor.Dtype
 	shape      tensor.Shape
@@ -23,6 +24,7 @@ type normalSampleOp struct {
 	numSamples int
 }
 
+// newNormalSampleOp returns a new normalSampleOp
 func newNormalSampleOp(dt tensor.Dtype, seed uint64, numSamples int,
 	shape ...int) (*normalSampleOp, error) {
 	if dt != tensor.Float64 && dt != tensor.Float32 {
@@ -49,9 +51,10 @@ func newNormalSampleOp(dt tensor.Dtype, seed uint64, numSamples int,
 	}, nil
 }
 
+// Arity implements the gorgonia.Op interface
 func (n *normalSampleOp) Arity() int { return 2 }
 
-// TODO: check over this, is it correct?
+// Type implements the gorgonia.Op interface
 func (n *normalSampleOp) Type() hm.Type {
 	in := G.TensorType{
 		Dims: n.shape.Dims(),
@@ -65,29 +68,37 @@ func (n *normalSampleOp) Type() hm.Type {
 	return hm.NewFnType(in, in, out)
 }
 
+// InferShape implements the gorgonia.Op interface
 func (n *normalSampleOp) InferShape(...G.DimSizer) (tensor.Shape, error) {
 	return append([]int{n.numSamples}, n.shape...), nil
 }
 
+// ReturnsPtr implements the gorgonia.Op interface
 func (n *normalSampleOp) ReturnsPtr() bool { return false }
 
+// CallsExtern implements the gorgonia.Op interface
 func (n *normalSampleOp) CallsExtern() bool { return false }
 
+// OverwritesInput implements the gorgonia.Op interface
 func (n *normalSampleOp) OverwritesInput() int { return -1 }
 
+// String implements the fmt.Stringer interface
 func (n *normalSampleOp) String() string {
 	return fmt.Sprintf("NormalRand{shape=%v}()", append([]int{n.numSamples},
 		n.shape...))
 }
 
+// WriteHash implements the gorgonia.Op interface
 func (n *normalSampleOp) WriteHash(h hash.Hash) {
 	fmt.Fprint(h, n.String())
 }
 
+// Hashcode implements the gorgonia.Op interface
 func (n *normalSampleOp) Hashcode() uint32 {
 	return gop.SimpleHash(n)
 }
 
+// Do implements the gorgonia.Op interface
 func (n *normalSampleOp) Do(inputs ...G.Value) (G.Value, error) {
 	if err := n.checkInputs(inputs...); err != nil {
 		return nil, fmt.Errorf("do: %v", err)
@@ -135,6 +146,8 @@ func (n *normalSampleOp) Do(inputs ...G.Value) (G.Value, error) {
 	return out, nil
 }
 
+// checkInputs returns an error if inputs is an illegal input for the
+// receiver
 func (n *normalSampleOp) checkInputs(inputs ...G.Value) error {
 	if err := gop.CheckArity(n, len(inputs)); err != nil {
 		return err

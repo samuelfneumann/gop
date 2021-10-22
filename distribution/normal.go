@@ -392,7 +392,7 @@ func (n *Normal) Rsample(m int) (*G.Node, error) {
 		G.WithValue(unitStddevT),
 		G.WithName(gop.Unique("unitStddev")),
 	)
-	stdNormal, err := NormalRand(zeroMean, unitStddev, n.seed,
+	stdNormal, err := NormalSample(zeroMean, unitStddev, n.seed,
 		m)
 	if err != nil {
 		return nil, fmt.Errorf("rsample: could not sample from "+
@@ -419,7 +419,7 @@ func (n *Normal) Rsample(m int) (*G.Node, error) {
 // Sample samples m samples from the receiver. This operation is
 // not differentiable
 func (n *Normal) Sample(m int) (*G.Node, error) {
-	return NormalRand(n.mean, n.stddev, n.seed, m)
+	return NormalSample(n.mean, n.stddev, n.seed, m)
 }
 
 // isBatch returns whether x is a batch of samples to calculate some

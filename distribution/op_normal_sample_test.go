@@ -61,7 +61,7 @@ func TestNormalRand(t *testing.T) {
 			G.WithValue(stddevT), G.WithName(gop.Unique("stddev")))
 
 		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
-		s, err := NormalRand(mean, stddev, uint64(time.Now().UnixNano()),
+		s, err := NormalSample(mean, stddev, uint64(time.Now().UnixNano()),
 			batchSize)
 		if err != nil {
 			t.Error(err)

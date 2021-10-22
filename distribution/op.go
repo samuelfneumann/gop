@@ -6,7 +6,13 @@ import (
 	G "gorgonia.org/gorgonia"
 )
 
-func NormalRand(mean, stddev *G.Node, seed uint64,
+// NormalSample returns numSamples samples from a normal distribution
+// with mean mean and standard deviation stddev. The batch dimension
+// is dimension 0 always.
+//
+// NormalSample is not a differentiable operation. For a differentiable
+// sampling operation, see Normal.
+func NormalSample(mean, stddev *G.Node, seed uint64,
 	numSamples int) (*G.Node, error) {
 	if mean.Dtype() != stddev.Dtype() {
 		return nil, fmt.Errorf("normalRand: mean and stddev should have "+
