@@ -42,6 +42,13 @@ Inverse Error Function   | Yes          | No
 Clamp/Clip               | Yes          | No
 Repeat                   | Yes          | No
 Gather                   | In progress  | No
+NormalSample             | No           | No
+
+## Distributions
+
+The following is a list of probability distributions implemented:
+
+* Univariate Normal
 
 ## ToDo
 
@@ -49,4 +56,4 @@ Gather                   | In progress  | No
 
 * [ ] StopGradient
 
-* [ ] Make Normal work with float32
+* [ ] `distributions.Independent`, similar to PyTorch's `Independent`
