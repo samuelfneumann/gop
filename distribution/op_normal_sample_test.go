@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samuelfneumann/gop"
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
@@ -49,7 +50,7 @@ func TestNormalRand(t *testing.T) {
 			tensor.WithBacking(meanBacking),
 		)
 		mean := G.NewTensor(g, meanT.Dtype(), meanT.Dims(), G.WithValue(meanT),
-			G.WithName("mean"))
+			G.WithName(gop.Unique("mean")))
 
 		stddevT := tensor.NewDense(
 			tensor.Float64,
@@ -57,7 +58,7 @@ func TestNormalRand(t *testing.T) {
 			tensor.WithBacking(stddevBacking),
 		)
 		stddev := G.NewTensor(g, stddevT.Dtype(), stddevT.Dims(),
-			G.WithValue(stddevT), G.WithName("stddev"))
+			G.WithValue(stddevT), G.WithName(gop.Unique("stddev")))
 
 		batchSize := minBatchSize + rand.Intn(maxBatchSize-minBatchSize) + 1
 		s, err := NormalRand(mean, stddev, uint64(time.Now().UnixNano()),

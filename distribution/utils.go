@@ -2,8 +2,17 @@ package distribution
 
 import "math/rand"
 
-func ones(size int) []float64 {
+func ones64(size int) []float64 {
 	slice := make([]float64, size)
+	for i := range slice {
+		slice[i] = 1.0
+	}
+
+	return slice
+}
+
+func ones32(size int) []float32 {
+	slice := make([]float32, size)
 	for i := range slice {
 		slice[i] = 1.0
 	}

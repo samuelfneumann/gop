@@ -48,3 +48,5 @@ Gather                   | In progress  | No
 * [ ] Permute/RollAxis
 
 * [ ] StopGradient
+
+* [ ] Make Normal work with float32

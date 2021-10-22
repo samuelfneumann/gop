@@ -10,7 +10,7 @@ import (
 var count map[string]uint64
 
 func init() {
-	count = make(map[string]uint)
+	count = make(map[string]uint64)
 }
 
 // UnixNano appends an _ followed by the current Unix time in

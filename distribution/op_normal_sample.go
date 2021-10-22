@@ -13,6 +13,8 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TODO: Make work with float32
+
 type normalSampleOp struct {
 	dt         tensor.Dtype
 	shape      tensor.Shape
@@ -60,11 +62,11 @@ func (n *normalSampleOp) Type() hm.Type {
 		Of:   n.dt,
 	}
 
-	return hm.NewFnType(out, in, in)
+	return hm.NewFnType(in, in, out)
 }
 
 func (n *normalSampleOp) InferShape(...G.DimSizer) (tensor.Shape, error) {
-	return n.shape, nil
+	return append([]int{n.numSamples}, n.shape...), nil
 }
 
 func (n *normalSampleOp) ReturnsPtr() bool { return false }
@@ -74,7 +76,8 @@ func (n *normalSampleOp) CallsExtern() bool { return false }
 func (n *normalSampleOp) OverwritesInput() int { return -1 }
 
 func (n *normalSampleOp) String() string {
-	return fmt.Sprintf("NormalSample{shape=%v}()", n.shape)
+	return fmt.Sprintf("NormalRand{shape=%v}()", append([]int{n.numSamples},
+		n.shape...))
 }
 
 func (n *normalSampleOp) WriteHash(h hash.Hash) {
@@ -87,7 +90,7 @@ func (n *normalSampleOp) Hashcode() uint32 {
 
 func (n *normalSampleOp) Do(inputs ...G.Value) (G.Value, error) {
 	if err := n.checkInputs(inputs...); err != nil {
-		return nil, fmt.Errorf("dp: %v", err)
+		return nil, fmt.Errorf("do: %v", err)
 	}
 
 	out := tensor.NewDense(

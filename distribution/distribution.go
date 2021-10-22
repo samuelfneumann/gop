@@ -6,17 +6,6 @@ import (
 	"gorgonia.org/tensor"
 )
 
-// Each of the following are SDOp's:
-// CDF
-// Entropy
-// LogProb
-// Prob
-// InverseCDF
-// RSample -- gotten automatically by reparam trick
-// Mean() for some distributions, such as a Gaussian
-// StdDev() -- for some distributions, such as a Gaussian
-// Variance() -- for some distributions, such as a Gaussian
-
 // Distribution is a probability distribution
 type Distribution interface {
 	Cdf(*G.Node) (*G.Node, error)

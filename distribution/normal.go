@@ -3,20 +3,19 @@ package distribution
 import (
 	"fmt"
 	"math"
-	"os"
 
+	"github.com/chewxy/math32"
 	"github.com/samuelfneumann/gop"
 	G "gorgonia.org/gorgonia"
 	"gorgonia.org/tensor"
 )
 
-// TODO: make work with float32
-
 // Normal is a univariate normal distribution, which may hold
 // a batch of normal distributions simultaneously. If a Normal is
 // created with a tensor mean and tensor standard deviation, then
-// each elemnt of the mean and standard deviation vectors defines a
-// different distribution element-wise. For example, consider if we
+// each element of the mean and standard deviation vectors defines a
+// different distribution element-wise. This is long for saying that
+// every dimension is a batch dimension. For example, consider if we
 // use a 1-tensor for the mean and standard deviation:
 //
 //		mean   := [m_1, m_2, ..., m_N]
@@ -41,11 +40,10 @@ import (
 // Given a Normal with shape (n_1, n_2, ..., n_M), the following are
 // legal shapes for an input:
 //
-// 1. (n_1, n_2, ..., n_M)
-// 2. (a, n_1, n_2, ..., n_M) for ∀a ∈ ℕ-{0}
+// 		1. (n_1, n_2, ..., n_M)
+// 		2. (a, n_1, n_2, ..., n_M) for ∀a ∈ ℕ-{0}
 //
 // Normal supports the following data types:
-// - tensor.Float64
 type Normal struct {
 	mean    *G.Node
 	meanVal G.Value
@@ -53,15 +51,11 @@ type Normal struct {
 	stddev    *G.Node
 	stddevVal G.Value
 
-	zeroMean   *G.Node
-	unitStddev *G.Node
-	stdNormal  *G.Node
-
 	seed uint64
 }
 
 // NewNormal returns a new Normal.
-func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
+func NewNormal(mean, stddev *G.Node, seed uint64) (Distribution, error) {
 	if !mean.Shape().Eq(stddev.Shape()) {
 		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
 			"have the same shape but got %v and %v", mean.Shape(),
@@ -173,10 +167,18 @@ func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
 		return nil, fmt.Errorf("logProb: %v", err)
 	}
 
-	two := x.Graph().Constant(G.NewF64(2.0))
-	negativeHalf := x.Graph().Constant(G.NewF64(-0.5))
-	lnRootTwoPi := x.Graph().Constant(G.NewF64(math.Log(math.Sqrt(
-		math.Pi * 2.))))
+	var two, negativeHalf, lnRootTwoPi *G.Node
+	if n.Dtype() == tensor.Float64 {
+		two = x.Graph().Constant(G.NewF64(2.0))
+		negativeHalf = x.Graph().Constant(G.NewF64(-0.5))
+		lnRootTwoPi = x.Graph().Constant(G.NewF64(math.Log(math.Sqrt(
+			math.Pi * 2.))))
+	} else {
+		two = x.Graph().Constant(G.NewF32(2.0))
+		negativeHalf = x.Graph().Constant(G.NewF32(-0.5))
+		lnRootTwoPi = x.Graph().Constant(G.NewF32(math32.Log(math32.Sqrt(
+			math32.Pi * 2.))))
+	}
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
@@ -217,9 +219,16 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 		}
 	}
 
-	rootTwo := x.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
-	one := x.Graph().Constant(G.NewF64(1.0))
-	half := x.Graph().Constant(G.NewF64(0.5))
+	var rootTwo, one, half *G.Node
+	if n.Dtype() == tensor.Float64 {
+		rootTwo = x.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
+		one = x.Graph().Constant(G.NewF64(1.0))
+		half = x.Graph().Constant(G.NewF64(0.5))
+	} else {
+		rootTwo = x.Graph().Constant(G.NewF32(math32.Sqrt(2.0)))
+		one = x.Graph().Constant(G.NewF32(1.0))
+		half = x.Graph().Constant(G.NewF32(0.5))
+	}
 
 	if n.isBatch(x) {
 		// Calculate probability of batch
@@ -259,9 +268,16 @@ func (n *Normal) Cdfinv(p *G.Node) (*G.Node, error) {
 		}
 	}
 
-	rootTwo := p.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
-	one := p.Graph().Constant(G.NewF64(1.0))
-	two := p.Graph().Constant(G.NewF64(2.0))
+	var rootTwo, one, two *G.Node
+	if n.Dtype() == tensor.Float64 {
+		rootTwo = p.Graph().Constant(G.NewF64(math.Sqrt(2.0)))
+		one = p.Graph().Constant(G.NewF64(1.0))
+		two = p.Graph().Constant(G.NewF64(2.0))
+	} else {
+		rootTwo = p.Graph().Constant(G.NewF32(math32.Sqrt(2.0)))
+		one = p.Graph().Constant(G.NewF32(1.0))
+		two = p.Graph().Constant(G.NewF32(2.0))
+	}
 
 	if n.isBatch(p) {
 		// Calculate probability of batch
@@ -312,9 +328,16 @@ func (n *Normal) Mean() *G.Node {
 // Entropy returns the entropy of the distribution(s) stored by the
 // receiver
 func (n *Normal) Entropy() *G.Node {
-	half := n.mean.Graph().Constant(G.NewF64(0.5))
-	twoPi := n.mean.Graph().Constant(G.NewF64(math.Pi * 2.0))
-	two := n.mean.Graph().Constant(G.NewF64(2.0))
+	var half, twoPi, two *G.Node
+	if n.Dtype() == tensor.Float64 {
+		half = n.mean.Graph().Constant(G.NewF64(0.5))
+		twoPi = n.mean.Graph().Constant(G.NewF64(math.Pi * 2.0))
+		two = n.mean.Graph().Constant(G.NewF64(2.0))
+	} else {
+		half = n.mean.Graph().Constant(G.NewF32(0.5))
+		twoPi = n.mean.Graph().Constant(G.NewF32(math32.Pi * 2.0))
+		two = n.mean.Graph().Constant(G.NewF32(2.0))
+	}
 
 	entropy := G.Must(G.Pow(n.stddev, two))
 	entropy = G.Must(G.HadamardProd(entropy, twoPi))
@@ -325,64 +348,75 @@ func (n *Normal) Entropy() *G.Node {
 	return entropy
 }
 
+// HasRsample returns whether the receiver supports reparameterized
+// sample -- true for the Normal.
 func (n *Normal) HasRsample() bool { return true }
 
-func (n *Normal) Rsample(samples int) (*G.Node, error) {
-	if n.zeroMean == nil || n.unitStddev == nil {
-		// Lazy instantiation of zero mean and unit variance
-		size := tensor.ProdInts(n.mean.Shape())
+// Dtype returns the type that the receiver operates on
+func (n *Normal) Dtype() tensor.Dtype { return n.mean.Dtype() }
 
-		zeroMean := tensor.NewDense(
-			tensor.Float64,
-			n.mean.Shape(),
-			tensor.WithBacking(make([]float64, size)),
-		)
-		n.zeroMean = G.NewTensor(
-			n.mean.Graph(),
-			n.mean.Dtype(),
-			n.mean.Dims(),
-			G.WithValue(zeroMean),
-			G.WithName(gop.UnixNano("zeroMean")),
-		)
+// Rsample samples m samples from the receiver using reparameterized
+// sampling. This is a differentiable operation.
+func (n *Normal) Rsample(m int) (*G.Node, error) {
+	size := tensor.ProdInts(n.mean.Shape())
 
-		unitStddev := tensor.NewDense(
-			tensor.Float64,
-			n.stddev.Shape(),
-			tensor.WithBacking(ones(size)),
-		)
-		n.unitStddev = G.NewTensor(
-			n.stddev.Graph(),
-			unitStddev.Dtype(),
-			unitStddev.Dims(),
-			G.WithValue(unitStddev),
-			G.WithName(gop.UnixNano("unitStddev")),
-		)
-		var err error
-		n.stdNormal, err = NormalRand(n.zeroMean, n.unitStddev, n.seed,
-			samples)
-		if err != nil {
-			return nil, fmt.Errorf("rsample: could not sample from "+
-				"standard normal: %v", err)
-		}
+	zeroMeanT := tensor.NewDense(
+		n.Dtype(),
+		n.mean.Shape(),
+		tensor.WithBacking(make([]float64, size)),
+	)
+	zeroMean := G.NewTensor(
+		n.mean.Graph(),
+		zeroMeanT.Dtype(),
+		zeroMeanT.Dims(),
+		G.WithValue(zeroMeanT),
+		G.WithName(gop.Unique("zeroMean")),
+	)
+
+	var ones interface{}
+	if n.Dtype() == tensor.Float64 {
+		ones = ones64(size)
+	} else {
+		ones = ones32(size)
+	}
+	unitStddevT := tensor.NewDense(
+		n.Dtype(),
+		n.stddev.Shape(),
+		tensor.WithBacking(ones),
+	)
+	unitStddev := G.NewTensor(
+		n.stddev.Graph(),
+		unitStddevT.Dtype(),
+		unitStddevT.Dims(),
+		G.WithValue(unitStddevT),
+		G.WithName(gop.Unique("unitStddev")),
+	)
+	stdNormal, err := NormalRand(zeroMean, unitStddev, n.seed,
+		m)
+	if err != nil {
+		return nil, fmt.Errorf("rsample: could not sample from "+
+			"standard normal: %v", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Rsample not finished implementation yet\n")
-	return n.stdNormal, nil
-	// // Reparameterization trick
-	// if samples > 1 {
-	// 	out := G.Must(G.BroadcastHadamardProd(n.stdNormal, n.stddev, nil,
-	// 		[]byte{0}))
-	// 	out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
-	// 	return out, nil
-	// } else {
-	// 	out := G.Must(G.HadamardProd(n.stdNormal, n.stddev))
-	// 	out = G.Must(G.Add(out, n.mean))
-	// 	return out, nil
-	// }
+	// Reparameterization trick
+	var out *G.Node
+	if m > 1 {
+		out = G.Must(G.BroadcastHadamardProd(stdNormal, n.stddev, nil,
+			[]byte{0}))
+		out = G.Must(G.BroadcastAdd(out, n.mean, nil, []byte{0}))
+		return out, nil
+	} else {
+		fmt.Println("HERE")
+		out = G.Must(G.HadamardProd(stdNormal, n.stddev))
+		out = G.Must(G.Add(out, n.mean))
+		return out, nil
+	}
 }
 
-func (n *Normal) Sample(samples int) (*G.Node, error) {
-	return NormalRand(n.mean, n.stddev, n.seed, samples)
+// Sample samples m samples from the receiver. This operation is
+// not differentiable
+func (n *Normal) Sample(m int) (*G.Node, error) {
+	return NormalRand(n.mean, n.stddev, n.seed, m)
 }
 
 // isBatch returns whether x is a batch of samples to calculate some
