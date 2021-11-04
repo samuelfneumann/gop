@@ -43,6 +43,257 @@ func Gather(x *G.Node, axis int, indices *G.Node) (*G.Node, error) {
 	return G.ApplyOp(op, x, indices)
 }
 
+// Squeeze removes an axis if it has a length of 1, otherwise an error is
+// returned
+func Squeeze(x *G.Node, axis int) (*G.Node, error) {
+	if x.Shape()[axis] != 1 {
+		return x, nil
+	}
+
+	shape := x.Shape()[:axis]
+	if axis < len(x.Shape())-1 {
+		shape = append(shape, x.Shape()[axis+1:]...)
+	}
+
+	out, err := G.Reshape(x, shape)
+	if err != nil {
+		return nil, fmt.Errorf("squeeze: %v", err)
+	}
+
+	return out, err
+}
+
+// ReduceMean calculates the mean along axis and squeezes the axis out
+func ReduceMean(x *G.Node, axis int) (*G.Node, error) {
+	length := x.Shape()[axis]
+
+	sum, err := ReduceAdd(x, axis)
+	if err != nil {
+		return nil, fmt.Errorf("reduceMean: could not sum: %v", err)
+	}
+
+	var n *G.Node
+	if x.Dtype() == tensor.Float64 {
+		n = G.NewConstant(float64(length))
+	} else if x.Dtype() == tensor.Float32 {
+		n = G.NewConstant(float32(length))
+	} else {
+		return nil, fmt.Errorf("reduceMean: cannot compute mean of tensor "+
+			"with type %v", x.Dtype())
+	}
+
+	out, err := G.HadamardDiv(sum, n)
+	if err != nil {
+		return nil, fmt.Errorf("reduceMean: could not divide by number of "+
+			"elements: %v", err)
+	}
+
+	return out, err
+}
+
+// ReduceSub calculates the difference along axis and squeezes the
+// axis out
+func ReduceSub(x *G.Node, axis int) (*G.Node, error) {
+	if axis >= len(x.Shape()) {
+		return nil, fmt.Errorf("reduceSub: axis out of range [%v] with "+
+			"length %v", axis, len(x.Shape()))
+	}
+	length := x.Shape()[axis]
+
+	// If the length is 1, then just reshape
+	if length == 1 {
+		return Squeeze(x, axis)
+	}
+
+	// Get the first row along the axis
+	ind := make([]tensor.Slice, len(x.Shape()))
+	ind[axis] = G.S(0)
+	row, err := G.Slice(x, ind...)
+	if err != nil {
+		return nil, fmt.Errorf("reduceSub: axis does not have any elements")
+	}
+
+	// Subtract each consecutive row
+	for i := 1; i < length; i++ {
+		ind[axis] = G.S(i)
+		nextRow, err := G.Slice(x, ind...)
+		if err != nil {
+			return nil, fmt.Errorf("reduceSub: could not get row %v: %v",
+				i, err)
+		}
+
+		// If the slice results in a scalar, reshape it to a vector
+		if len(nextRow.Shape()) == 0 {
+			nextRow, err = G.Reshape(nextRow, []int{1})
+			if err != nil {
+				return nil, fmt.Errorf("reduceSub: could not reshape scalar " +
+					"to 1-tensor")
+			}
+		}
+
+		row, err = G.Sub(row, nextRow)
+		if err != nil {
+			return nil, fmt.Errorf("reduceSub: could not subtract rows: %v",
+				err)
+		}
+	}
+
+	return row, nil
+}
+
+// ReduceAdd calculates the sum along axis and squeezes the axis out
+func ReduceAdd(x *G.Node, axis int) (*G.Node, error) {
+	fmt.Println("Input shape:", x.Shape())
+	if axis >= len(x.Shape()) {
+		return nil, fmt.Errorf("reduceAdd: axis out of range [%v] with "+
+			"length %v", axis, len(x.Shape()))
+	}
+	length := x.Shape()[axis]
+
+	// If the length is 1, then just reshape
+	if length == 1 {
+		fmt.Println("LENGTH 1")
+		return Squeeze(x, axis)
+	}
+
+	// Get the first row along the axis
+	ind := make([]tensor.Slice, len(x.Shape()))
+	ind[axis] = G.S(0)
+	row, err := G.Slice(x, ind...)
+	if err != nil {
+		return nil, fmt.Errorf("reduceAdd: axis does not have any elements")
+	}
+
+	// Add each consecutive row
+	for i := 1; i < length; i++ {
+		ind[axis] = G.S(i)
+		nextRow, err := G.Slice(x, ind...)
+		fmt.Println("Next row shape:", nextRow.Shape())
+		if err != nil {
+			return nil, fmt.Errorf("reduceAdd: could not get row %v: %v",
+				i, err)
+		}
+
+		// If the slice results in a scalar, reshape it to a vector
+		if len(nextRow.Shape()) == 0 {
+			nextRow, err = G.Reshape(nextRow, []int{1})
+			if err != nil {
+				return nil, fmt.Errorf("reduceAdd: could not reshape scalar " +
+					"to 1-tensor")
+			}
+		}
+
+		row, err = G.Add(row, nextRow)
+		if err != nil {
+			return nil, fmt.Errorf("reduceAdd: could not add rows: %v",
+				err)
+		}
+	}
+
+	fmt.Println("done", row.Shape())
+	return row, nil
+}
+
+// ReduceDiv calculates the quotient along axis and squeezes the axis
+// out
+func ReduceDiv(x *G.Node, axis int) (*G.Node, error) {
+	if axis >= len(x.Shape()) {
+		return nil, fmt.Errorf("reduceDiv: axis out of range [%v] with "+
+			"length %v", axis, len(x.Shape()))
+	}
+	length := x.Shape()[axis]
+
+	// If the length is 1, then just reshape
+	if length == 1 {
+		return Squeeze(x, axis)
+	}
+
+	// Get the first row along the axis
+	ind := make([]tensor.Slice, len(x.Shape()))
+	ind[axis] = G.S(0)
+	row, err := G.Slice(x, ind...)
+	if err != nil {
+		return nil, fmt.Errorf("reduceDiv: axis does not have any elements")
+	}
+
+	// Divide each consecutive row
+	for i := 1; i < length; i++ {
+		ind[axis] = G.S(i)
+		nextRow, err := G.Slice(x, ind...)
+		if err != nil {
+			return nil, fmt.Errorf("reduceDiv: could not get row %v: %v",
+				i, err)
+		}
+
+		// If the slice results in a scalar, reshape it to a vector
+		if len(nextRow.Shape()) == 0 {
+			nextRow, err = G.Reshape(nextRow, []int{1})
+			if err != nil {
+				return nil, fmt.Errorf("reduceAdd: could not reshape scalar " +
+					"to 1-tensor")
+			}
+		}
+
+		row, err = G.HadamardDiv(row, nextRow)
+		if err != nil {
+			return nil, fmt.Errorf("reduceDiv: could not divide rows: %v",
+				err)
+		}
+	}
+
+	return row, nil
+}
+
+// ReduceProd calculates the product along axis and squeezes the axis
+// out
+func ReduceProd(x *G.Node, axis int) (*G.Node, error) {
+	if axis >= len(x.Shape()) {
+		return nil, fmt.Errorf("reduceProd: axis out of range [%v] with "+
+			"length %v", axis, len(x.Shape()))
+	}
+	length := x.Shape()[axis]
+
+	// If the length is 1, then just reshape
+	if length == 1 {
+		return Squeeze(x, axis)
+	}
+
+	// Get the first row along the axis
+	ind := make([]tensor.Slice, len(x.Shape()))
+	ind[axis] = G.S(0)
+	row, err := G.Slice(x, ind...)
+	if err != nil {
+		return nil, fmt.Errorf("reduceProd: axis does not have any elements")
+	}
+
+	// Multiply each consecutive row
+	for i := 1; i < length; i++ {
+		ind[axis] = G.S(i)
+		nextRow, err := G.Slice(x, ind...)
+		if err != nil {
+			return nil, fmt.Errorf("reduceProd: could not get row %v: %v",
+				i, err)
+		}
+
+		// If the slice results in a scalar, reshape it to a vector
+		if len(nextRow.Shape()) == 0 {
+			nextRow, err = G.Reshape(nextRow, []int{1})
+			if err != nil {
+				return nil, fmt.Errorf("reduceAdd: could not reshape scalar " +
+					"to 1-tensor")
+			}
+		}
+
+		row, err = G.HadamardProd(row, nextRow)
+		if err != nil {
+			return nil, fmt.Errorf("reduceProd: could not multiply rows: %v",
+				err)
+		}
+	}
+
+	return row, nil
+}
+
 // Repeat repeats the elements of x along axis repeats times. This
 // function is conceptually similar to Numpy's repeat function and
 // PyTorch's repeat_interleave function.
