@@ -13,11 +13,11 @@ import (
 
 func TestReduceAdd(t *testing.T) {
 	// Get a random shape for the tensor to squeeze
-	var shape []int = []int{2, 1, 1}
+	var shape []int = []int{2, 1, 2, 1}
 	// fmt.Println("Shape:", shape)
 
 	// Get a random axis to squeeze
-	axis := 0
+	axis := 1
 	// fmt.Println("AXIS:", axis)
 
 	// Create the backing tensor
