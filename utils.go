@@ -5,6 +5,8 @@ import (
 	"hash"
 	"hash/fnv"
 	"math/rand"
+
+	"gorgonia.org/tensor"
 )
 
 // ariter is anything that can return its arity
@@ -61,4 +63,16 @@ func randInt(size int, min, max int) []int {
 	}
 
 	return slice
+}
+
+// countOnesBefore counts the number of dimensions that have length 1
+// before dimension axis
+func countOnesBefore(shape tensor.Shape, axis int) int {
+	count := 0
+	for i := 0; i < axis; i++ {
+		if shape[i] == 1 {
+			count++
+		}
+	}
+	return count
 }

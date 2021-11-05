@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"time"
 
 	colour "github.com/samuelfneumann/gocolour"
 
@@ -35,6 +34,7 @@ func init() {
 	}
 }
 
+// ! In progress
 func Gather(x *G.Node, axis int, indices *G.Node) (*G.Node, error) {
 	op, err := newGatherOp(axis, indices.Shape().Dims())
 	if err != nil {
@@ -44,14 +44,29 @@ func Gather(x *G.Node, axis int, indices *G.Node) (*G.Node, error) {
 	return G.ApplyOp(op, x, indices)
 }
 
-// Squeeze removes an axis if it has a length of 1, otherwise an error is
-// returned
+// Unsqueeze adds a dimension of length 1 at dimension axis
+func Unsqueeze(x *G.Node, axis int) (*G.Node, error) {
+	shape := make(tensor.Shape, 0, x.Dims()+1)
+	shape = append(shape, x.Shape()[:axis]...)
+	shape = append(shape, 1)
+	shape = append(shape, shape[axis:]...)
+
+	out, err := G.Reshape(x, shape)
+	if err != nil {
+		return nil, fmt.Errorf("unsqueeze: could not reshape: %v", err)
+	}
+	return out, nil
+}
+
+// Squeeze removes an axis if it has a length of 1, otherwise it is
+// a no-op
 func Squeeze(x *G.Node, axis int) (*G.Node, error) {
 	if x.Shape()[axis] != 1 {
 		return x, nil
 	}
 
-	shape := x.Shape()[:axis]
+	// Calculate the new shape
+	shape := x.Shape().Clone()[:axis]
 	if axis < len(x.Shape())-1 {
 		shape = append(shape, x.Shape()[axis+1:]...)
 	}
@@ -72,12 +87,9 @@ func SqueezeAll(x *G.Node) (*G.Node, error) {
 // SqueezeAllBut squeezes all dimensions but axis
 func SqueezeAllBut(x *G.Node, axis int) (*G.Node, error) {
 	var err error
-	shape := x.Shape()
 	dimToSqueeze := 0
 	for {
-		if shape[dimToSqueeze] == 1 && dimToSqueeze != axis {
-			fmt.Println(x.Shape(), dimToSqueeze, shape[dimToSqueeze], axis)
-			time.Sleep(time.Second)
+		if x.Shape()[dimToSqueeze] == 1 && dimToSqueeze != axis {
 			x, err = Squeeze(x, dimToSqueeze)
 			if err != nil {
 				return nil, fmt.Errorf("reduceAdd: could not squeeze dim %v",
@@ -86,7 +98,6 @@ func SqueezeAllBut(x *G.Node, axis int) (*G.Node, error) {
 			if dimToSqueeze < axis {
 				axis--
 			}
-			shape = x.Shape()
 		} else {
 			dimToSqueeze++
 		}
@@ -99,11 +110,12 @@ func SqueezeAllBut(x *G.Node, axis int) (*G.Node, error) {
 	return x, nil
 }
 
-// ReduceMean calculates the mean along axis and squeezes the axis out
-func ReduceMean(x *G.Node, axis int) (*G.Node, error) {
+// ReduceMean calculates the mean along axis and squeezes all axes.
+// If keepdims is true, then only axis is squeezed.
+func ReduceMean(x *G.Node, axis int, keepdims bool) (*G.Node, error) {
 	length := x.Shape()[axis]
 
-	sum, err := ReduceAdd(x, axis)
+	sum, err := ReduceAdd(x, axis, keepdims)
 	if err != nil {
 		return nil, fmt.Errorf("reduceMean: could not sum: %v", err)
 	}
@@ -118,6 +130,31 @@ func ReduceMean(x *G.Node, axis int) (*G.Node, error) {
 			"with type %v", x.Dtype())
 	}
 
+	// Deal with the edge case when sum is a scalar. Gorgonia doesn't
+	// treat 0-Tensors as scalars , so we must reshape the 0-Tensor/scalar
+	// to a vector before dividing, then reshape back to a scalar/0-Tensor
+	if sum.Dims() == 0 {
+		sum, err = G.Reshape(sum, []int{1})
+		if err != nil {
+			return nil, fmt.Errorf("reduceMean: could not reshape scalar to "+
+				"1-vector: %v", err)
+		}
+
+		out, err := G.HadamardDiv(sum, n)
+		if err != nil {
+			return nil, fmt.Errorf("reduceMean: could not divide by number "+
+				"of rows: %v", err)
+		}
+
+		out, err = Squeeze(out, 0)
+		if err != nil {
+			return nil, fmt.Errorf("reduceMean: could not reshape back to "+
+				"scalar: %v", err)
+		}
+
+		return out, nil
+	}
+
 	out, err := G.HadamardDiv(sum, n)
 	if err != nil {
 		return nil, fmt.Errorf("reduceMean: could not divide by number of "+
@@ -127,46 +164,81 @@ func ReduceMean(x *G.Node, axis int) (*G.Node, error) {
 	return out, err
 }
 
-// ReduceSub calculates the difference along axis and squeezes all
-// axes
-func ReduceSub(x *G.Node, axis int) (*G.Node, error) {
-	return ReduceAlong(x, axis, G.Sub)
-}
-
 // ReduceAlong iteratively applies f to the first two rows of x along
-// axis, replacing the first row of x along axis by the output of this
-// operation at each iteration.
-func ReduceAlong(x *G.Node, axis int, f func(*G.Node, *G.Node) (*G.Node, error)) (*G.Node, error) {
-	if axis >= len(x.Shape()) {
+// axis, replacing the first row by the output of f at each iteration.
+// All axes are squeezed, unless keepdims is true, in which case only
+// axis is squeezed.
+//
+// At the first step, the first two rows are picked and the result of
+// f obtained. The next step is to apply f to the previously obtained
+// result and the third row. The process continues until no more
+// rows are left along axis, and dimension axis is then removed.
+//
+// ReduceAlong is like Python's reduce.
+func ReduceAlong(x *G.Node, axis int, keepdims bool,
+	f func(*G.Node, *G.Node) (*G.Node, error)) (*G.Node, error) {
+	if axis >= x.Dims() {
 		return nil, fmt.Errorf("reduceAlong: axis out of range [%v] with "+
-			"length %v", axis, len(x.Shape()))
+			"length %v", axis, x.Dims())
 	}
 
-	// Squeeze out all dimensions of length 1
+	// If input is a scalar, just return it
+	if x.Dims() == 0 {
+		return x, nil
+	}
+
+	// Get the original shape less axis
+	var origShape tensor.Shape
+	if keepdims {
+		origShape = x.Shape().Clone()[:axis]
+		if axis != x.Dims()-1 {
+			origShape = append(origShape, x.Shape()[axis+1:]...)
+		}
+
+		if x.Shape()[axis] == 1 {
+			out, err := Squeeze(x, axis)
+			if err != nil {
+				return nil, fmt.Errorf("reduceAlong: could not squeeze "+
+					"axis %v: %v", axis, err)
+			}
+			return out, nil
+		}
+	}
+
+	// Calculate the new axis to reduce along after squeezing
+	newAxis := axis - countOnesBefore(x.Shape(), axis)
+
+	// Squeeze out all dimensions of length 1 besides axis
 	var err error
 	x, err = SqueezeAllBut(x, axis)
 	if err != nil {
 		return nil, fmt.Errorf("reduceAlong: could not squeeze dimensions: %v",
 			err)
 	}
+	axis = newAxis // Update axis to reflect squeezing of dims
 	length := x.Shape()[axis]
 
-	// If the length is 1, then just reshape
+	// If the length of axis is 1, then just squeeze
 	if length == 1 {
-		return Squeeze(x, axis)
+		out, err := Squeeze(x, axis)
+		if err != nil {
+			return nil, fmt.Errorf("reduceAlong: could not squeeze "+
+				"axis %v: %v", axis, err)
+		}
+		return out, nil
 	}
 
 	// Get the first row along the axis
-	ind := make([]tensor.Slice, len(x.Shape()))
-	ind[axis] = G.S(0)
+	ind := make([]tensor.Slice, x.Dims())
+	ind[axis] = G.S(0, 1, 1)
 	row, err := G.Slice(x, ind...)
 	if err != nil {
 		return nil, fmt.Errorf("reduceAlong: axis does not have any elements")
 	}
 
-	// Add each consecutive row
+	// Calculate f(row, next row) for each next row
 	for i := 1; i < length; i++ {
-		ind[axis] = G.S(i)
+		ind[axis] = G.S(i, i+1, 1)
 		nextRow, err := G.Slice(x, ind...)
 		if err != nil {
 			return nil, fmt.Errorf("reduceAlong: could not get row %v: %v",
@@ -180,79 +252,40 @@ func ReduceAlong(x *G.Node, axis int, f func(*G.Node, *G.Node) (*G.Node, error))
 		}
 	}
 
-	fmt.Println("done", row.Shape())
+	if keepdims {
+		// Reshape back to original shape less axis
+		row, err = G.Reshape(row, origShape)
+		if err != nil {
+			return nil, fmt.Errorf("reduceAlong: could not reshape back to "+
+				"original dims: %v", err)
+		}
+	}
+
 	return row, nil
 }
 
-// ReduceAdd calculates the sum along axis and squeezes the axis out
-func ReduceAdd(x *G.Node, axis int) (*G.Node, error) {
-	return ReduceAlong(x, axis, G.Add)
-	// fmt.Println("Input shape:", x.Shape())
-	// if axis >= len(x.Shape()) {
-	// 	return nil, fmt.Errorf("reduceAdd: axis out of range [%v] with "+
-	// 		"length %v", axis, len(x.Shape()))
-	// }
-
-	// // Squeeze out all dimensions of length 1
-	// var err error
-	// x, err = SqueezeAllBut(x, axis)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("reduceAdd: could not squeeze dimensions: %v",
-	// 		err)
-	// }
-
-	// fmt.Println("OUT=====", x.Shape())
-
-	// fmt.Println("Adjusted input shape:", x.Shape())
-	// fmt.Println("Axis:", axis)
-	// length := x.Shape()[axis]
-	// fmt.Println("Length:", length)
-
-	// // If the length is 1, then just reshape
-	// if length == 1 {
-	// 	fmt.Println("LENGTH 1")
-	// 	return Squeeze(x, axis)
-	// }
-
-	// // Get the first row along the axis
-	// ind := make([]tensor.Slice, len(x.Shape()))
-	// ind[axis] = G.S(0)
-	// row, err := G.Slice(x, ind...)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("reduceAdd: axis does not have any elements")
-	// }
-
-	// // Add each consecutive row
-	// for i := 1; i < length; i++ {
-	// 	ind[axis] = G.S(i)
-	// 	nextRow, err := G.Slice(x, ind...)
-	// 	fmt.Println("Next row shape:", nextRow.Shape())
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("reduceAdd: could not get row %v: %v",
-	// 			i, err)
-	// 	}
-
-	// 	row, err = G.Add(row, nextRow)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("reduceAdd: could not add rows: %v",
-	// 			err)
-	// 	}
-	// }
-
-	// fmt.Println("done", row.Shape())
-	// return row, nil
+// ReduceSub calculates the difference along axis and squeezes all
+// axes. If keepdims is true, then only axis is squeezed.
+func ReduceSub(x *G.Node, axis int, keepdims bool) (*G.Node, error) {
+	return ReduceAlong(x, axis, keepdims, G.Sub)
 }
 
-// ReduceDiv calculates the quotient along axis and squeezes the axis
-// out
-func ReduceDiv(x *G.Node, axis int) (*G.Node, error) {
-	return ReduceAlong(x, axis, G.HadamardDiv)
+// ReduceAdd calculates the sum along axis and squeezes all axes.
+// If keepdims is true, then only axis is squeezed.
+func ReduceAdd(x *G.Node, axis int, keepdims bool) (*G.Node, error) {
+	return ReduceAlong(x, axis, keepdims, G.Add)
 }
 
-// ReduceProd calculates the product along axis and squeezes the axis
-// out
-func ReduceProd(x *G.Node, axis int) (*G.Node, error) {
-	return ReduceAlong(x, axis, G.HadamardProd)
+// ReduceDiv calculates the quotient along axis and squeezes all axes.
+// If keepdims is true, then only axis is squeezed.
+func ReduceDiv(x *G.Node, axis int, keepdims bool) (*G.Node, error) {
+	return ReduceAlong(x, axis, keepdims, G.HadamardDiv)
+}
+
+// ReduceProd calculates the product along axis and squeezes all axes.
+// If keepdims is true, then only axis is squeezed.
+func ReduceProd(x *G.Node, axis int, keepdims bool) (*G.Node, error) {
+	return ReduceAlong(x, axis, keepdims, G.HadamardProd)
 }
 
 // Repeat repeats the elements of x along axis repeats times. This

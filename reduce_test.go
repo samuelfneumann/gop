@@ -1,7 +1,6 @@
 package gop
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -11,68 +10,680 @@ import (
 	"gorgonia.org/tensor"
 )
 
+// TestReduceMean tests the ReduceMean function with keepdims == true
+func TestReduceMean(t *testing.T) {
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
+
+	const threshold float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 20              // Number of tests to run
+
+	const maxDims int = 6     // Maximum number of tensor dimensions to test on
+	const minDims int = 1     // Minimum number of tensor dimensions to test on
+	const maxDimSize int = 10 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1)
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the input tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0 // ∈ [-1, 1)
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Calculate target shape
+		targetShape := inTensor.Shape().Clone()[:axis]
+		if axis != inTensor.Dims()-1 {
+			targetShape = append(targetShape, inTensor.Shape()[axis+1:]...)
+		}
+
+		// Calculate target
+		ind := make([]tensor.Slice, inTensor.Dims())
+		n := float64(inTensor.Shape()[axis])
+		target := tensor.NewDense(inTensor.Dtype(), targetShape)
+		for row := 0; row < inTensor.Shape()[axis]; row++ {
+			// Get the next row to compute on
+			ind[axis] = G.S(row)
+			nextRowView, err := inTensor.Slice(ind...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Get the next row and reshape it, which is required since
+			// if there any any dimensions of 1 in the input Tensor,
+			// they will be squeezed, which we don't want to happen
+			// in the target
+			nextRow := nextRowView.Materialize().(*tensor.Dense)
+			err = nextRow.Reshape(targetShape...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Update the target
+			target, err = target.Add(nextRow)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+		mean, err := tensor.Div(target, n)
+		if err != nil {
+			t.Error(err)
+		}
+		target = mean.(*tensor.Dense)
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		// Create input tensor
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+			G.WithShape(shape...),
+		)
+
+		// Set the operation to test
+		computedNode, err := ReduceMean(in, axis, true)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		err = vm.RunAll()
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Enusre the output has the correct shape
+		if !target.Shape().Eq(computed.Shape()) {
+			t.Errorf("expected shape: %v \nreceived shape: %v\n", target.Shape(),
+				computed.Shape())
+		}
+
+		// Ensure the output has the correct values computed
+		if target.Dims() != 0 {
+			targetBacking := target.Data().([]float64)
+			computedBacking := computed.Data().([]float64)
+			for i := range targetBacking {
+				if math.Abs(targetBacking[i]-computedBacking[i]) > threshold {
+					t.Errorf("incorrect result computed \n\texpected: %v "+
+						"\n\treceived: %v\n", targetBacking[i], computedBacking[i])
+				}
+			}
+		} else {
+			targetBacking := target.Data().(float64)
+			computedBacking := computed.Data().(float64)
+			if math.Abs(targetBacking-computedBacking) > threshold {
+				t.Errorf("incorrect result computed \n\texpected: %v "+
+					"\n\treceived: %v\n", targetBacking, computedBacking)
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
+}
+
+// TestReduceAdd tests the ReduceAdd function with keepdims == true
 func TestReduceAdd(t *testing.T) {
-	// Get a random shape for the tensor to squeeze
-	var shape []int = []int{2, 1, 2, 1}
-	// fmt.Println("Shape:", shape)
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
 
-	// Get a random axis to squeeze
-	axis := 1
-	// fmt.Println("AXIS:", axis)
+	const threshold float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 20              // Number of tests to run
 
-	// Create the backing tensor
-	backing := make([]float64, tensor.ProdInts(shape))
-	for i := range backing {
-		z := (rand.Float64() - 0.5) * 2.0
-		backing[i] = z
+	const maxDims int = 6     // Maximum number of tensor dimensions to test on
+	const minDims int = 1     // Minimum number of tensor dimensions to test on
+	const maxDimSize int = 10 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1)
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the input tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0 // ∈ [-1, 1)
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Calculate target shape
+		targetShape := inTensor.Shape().Clone()[:axis]
+		if axis != inTensor.Dims()-1 {
+			targetShape = append(targetShape, inTensor.Shape()[axis+1:]...)
+		}
+
+		// Calculate target
+		ind := make([]tensor.Slice, inTensor.Dims())
+		target := tensor.NewDense(inTensor.Dtype(), targetShape)
+		for row := 0; row < inTensor.Shape()[axis]; row++ {
+			// Get the next row to compute on
+			ind[axis] = G.S(row)
+			nextRowView, err := inTensor.Slice(ind...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Get the next row and reshape it, which is required since
+			// if there any any dimensions of 1 in the input Tensor,
+			// they will be squeezed, which we don't want to happen
+			// in the target
+			nextRow := nextRowView.Materialize().(*tensor.Dense)
+			err = nextRow.Reshape(targetShape...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Update the target
+			target, err = target.Add(nextRow)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		// Create input tensor
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+			G.WithShape(shape...),
+		)
+
+		// Set the operation to test
+		computedNode, err := ReduceAdd(in, axis, true)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		err = vm.RunAll()
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Enusre the output has the correct shape
+		if !target.Shape().Eq(computed.Shape()) {
+			t.Errorf("expected shape: %v \nreceived shape: %v\n", target.Shape(),
+				computed.Shape())
+		}
+
+		// Ensure the output has the correct values computed
+		if target.Dims() != 0 {
+			targetBacking := target.Data().([]float64)
+			computedBacking := computed.Data().([]float64)
+			for i := range targetBacking {
+				if math.Abs(targetBacking[i]-computedBacking[i]) > threshold {
+					t.Errorf("incorrect result computed \n\texpected: %v "+
+						"\n\treceived: %v\n", targetBacking[i], computedBacking[i])
+				}
+			}
+		} else {
+			targetBacking := target.Data().(float64)
+			computedBacking := computed.Data().(float64)
+			if math.Abs(targetBacking-computedBacking) > threshold {
+				t.Errorf("incorrect result computed \n\texpected: %v "+
+					"\n\treceived: %v\n", targetBacking, computedBacking)
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
 	}
-	inTensor := tensor.NewDense(
-		tensor.Float64,
-		shape,
-		tensor.WithBacking(backing),
-	)
+}
 
-	// Create the computational graph
-	g := G.NewGraph()
+// TestReduceSub tests the ReduceSub function with keepdims == true
+func TestReduceSub(t *testing.T) {
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
 
-	in := G.NewTensor(
-		g,
-		tensor.Float64,
-		len(shape),
-		G.WithValue(inTensor),
-		G.WithShape(shape...),
-	)
-	computedNode, err := ReduceAdd(in, axis)
-	if err != nil {
-		t.Error(err)
+	const threshold float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 20              // Number of tests to run
+
+	const maxDims int = 6     // Maximum number of tensor dimensions to test on
+	const minDims int = 1     // Minimum number of tensor dimensions to test on
+	const maxDimSize int = 10 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1)
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the input tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0 // ∈ [-1, 1)
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Calculate target shape
+		targetShape := inTensor.Shape().Clone()[:axis]
+		if axis != inTensor.Dims()-1 {
+			targetShape = append(targetShape, inTensor.Shape()[axis+1:]...)
+		}
+
+		// === Calculate the target ===
+		// Use the first row as a starting point for target
+		ind := make([]tensor.Slice, inTensor.Dims())
+		ind[axis] = G.S(0)
+		targetView, err := inTensor.Slice(ind...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Materialize the row and reshape it to the proper shape
+		target := targetView.Materialize().(*tensor.Dense)
+		err = target.Reshape(targetShape...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Run the function to test on target and next row for all next
+		// rows
+		for row := 1; row < inTensor.Shape()[axis]; row++ {
+			// Get the next row to compute on
+			ind[axis] = G.S(row)
+			nextRowView, err := inTensor.Slice(ind...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Get the next row and reshape it, which is required since
+			// if there any any dimensions of 1 in the input Tensor,
+			// they will be squeezed, which we don't want to happen
+			// in the target
+			nextRow := nextRowView.Materialize().(*tensor.Dense)
+			err = nextRow.Reshape(targetShape...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Update the target
+			target, err = target.Sub(nextRow)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		// Create input tensor
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+			G.WithShape(shape...),
+		)
+
+		// Set the operation to test
+		computedNode, err := ReduceSub(in, axis, true)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		err = vm.RunAll()
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Enusre the output has the correct shape
+		if !target.Shape().Eq(computed.Shape()) {
+			t.Errorf("expected shape: %v \nreceived shape: %v\n", target.Shape(),
+				computed.Shape())
+		}
+
+		// Ensure the output has the correct values computed
+		if target.Dims() != 0 {
+			targetBacking := target.Data().([]float64)
+			computedBacking := computed.Data().([]float64)
+			for i := range targetBacking {
+				if math.Abs(targetBacking[i]-computedBacking[i]) > threshold {
+					t.Errorf("incorrect result computed \n\texpected: %v "+
+						"\n\treceived: %v\n", targetBacking[i], computedBacking[i])
+				}
+			}
+		} else {
+			targetBacking := target.Data().(float64)
+			computedBacking := computed.Data().(float64)
+			if math.Abs(targetBacking-computedBacking) > threshold {
+				t.Errorf("incorrect result computed \n\texpected: %v "+
+					"\n\treceived: %v\n", targetBacking, computedBacking)
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
 	}
-	var computed G.Value
-	G.Read(computedNode, &computed)
+}
 
-	// // Draw graph
-	// b, err := dot.Marshal(g)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Println(string(b))
+// TestReduceProd tests the ReduceProd function with keepdims == true
+func TestReduceProd(t *testing.T) {
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
 
-	// Run the graph
-	vm := G.NewTapeMachine(g)
-	err = vm.RunAll()
-	if err != nil {
-		t.Error(err)
+	const threshold float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 20              // Number of tests to run
+
+	const maxDims int = 6     // Maximum number of tensor dimensions to test on
+	const minDims int = 1     // Minimum number of tensor dimensions to test on
+	const maxDimSize int = 10 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1)
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the input tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0 // ∈ [-1, 1)
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Calculate target shape
+		targetShape := inTensor.Shape().Clone()[:axis]
+		if axis != inTensor.Dims()-1 {
+			targetShape = append(targetShape, inTensor.Shape()[axis+1:]...)
+		}
+
+		// === Calculate the target ===
+		// Use the first row as a starting point for target
+		ind := make([]tensor.Slice, inTensor.Dims())
+		ind[axis] = G.S(0)
+		targetView, err := inTensor.Slice(ind...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Materialize the row and reshape it to the proper shape
+		target := targetView.Materialize().(*tensor.Dense)
+		err = target.Reshape(targetShape...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Run the function to test on target and next row for all next
+		// rows
+		for row := 1; row < inTensor.Shape()[axis]; row++ {
+			// Get the next row to compute on
+			ind[axis] = G.S(row)
+			nextRowView, err := inTensor.Slice(ind...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Get the next row and reshape it, which is required since
+			// if there any any dimensions of 1 in the input Tensor,
+			// they will be squeezed, which we don't want to happen
+			// in the target
+			nextRow := nextRowView.Materialize().(*tensor.Dense)
+			err = nextRow.Reshape(targetShape...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Update the target
+			target, err = target.Mul(nextRow)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		// Create input tensor
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+			G.WithShape(shape...),
+		)
+
+		// Set the operation to test
+		computedNode, err := ReduceProd(in, axis, true)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		err = vm.RunAll()
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Enusre the output has the correct shape
+		if !target.Shape().Eq(computed.Shape()) {
+			t.Errorf("expected shape: %v \nreceived shape: %v\n", target.Shape(),
+				computed.Shape())
+		}
+
+		// Ensure the output has the correct values computed
+		if target.Dims() != 0 {
+			targetBacking := target.Data().([]float64)
+			computedBacking := computed.Data().([]float64)
+			for i := range targetBacking {
+				if math.Abs(targetBacking[i]-computedBacking[i]) > threshold {
+					t.Errorf("incorrect result computed \n\texpected: %v "+
+						"\n\treceived: %v\n", targetBacking[i], computedBacking[i])
+				}
+			}
+		} else {
+			targetBacking := target.Data().(float64)
+			computedBacking := computed.Data().(float64)
+			if math.Abs(targetBacking-computedBacking) > threshold {
+				t.Errorf("incorrect result computed \n\texpected: %v "+
+					"\n\treceived: %v\n", targetBacking, computedBacking)
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
 	}
+}
 
-	fmt.Println("INPUT:\n", inTensor)
-	fmt.Println(inTensor.Shape())
-	fmt.Println()
-	fmt.Println("COMPUTED:\n", computed)
-	fmt.Println(computedNode.Shape())
-	fmt.Println(computed.Shape())
-	fmt.Println(axis)
+// TestReduceDiv tests the ReduceDiv function with keepdims == true
+func TestReduceDiv(t *testing.T) {
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
 
-	vm.Reset()
-	vm.Close()
+	const threshold float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 20              // Number of tests to run
+
+	const maxDims int = 6     // Maximum number of tensor dimensions to test on
+	const minDims int = 1     // Minimum number of tensor dimensions to test on
+	const maxDimSize int = 10 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1)
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the input tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0 // ∈ [-1, 1)
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Calculate target shape
+		targetShape := inTensor.Shape().Clone()[:axis]
+		if axis != inTensor.Dims()-1 {
+			targetShape = append(targetShape, inTensor.Shape()[axis+1:]...)
+		}
+
+		// === Calculate the target ===
+		// Use the first row as a starting point for target
+		ind := make([]tensor.Slice, inTensor.Dims())
+		ind[axis] = G.S(0)
+		targetView, err := inTensor.Slice(ind...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Materialize the row and reshape it to the proper shape
+		target := targetView.Materialize().(*tensor.Dense)
+		err = target.Reshape(targetShape...)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Run the function to test on target and next row for all next
+		// rows
+		for row := 1; row < inTensor.Shape()[axis]; row++ {
+			// Get the next row to compute on
+			ind[axis] = G.S(row)
+			nextRowView, err := inTensor.Slice(ind...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Get the next row and reshape it, which is required since
+			// if there any any dimensions of 1 in the input Tensor,
+			// they will be squeezed, which we don't want to happen
+			// in the target
+			nextRow := nextRowView.Materialize().(*tensor.Dense)
+			err = nextRow.Reshape(targetShape...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Update the target
+			target, err = target.Div(nextRow)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		// Create input tensor
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+			G.WithShape(shape...),
+		)
+
+		// Set the operation to test
+		computedNode, err := ReduceDiv(in, axis, true)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		err = vm.RunAll()
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Enusre the output has the correct shape
+		if !target.Shape().Eq(computed.Shape()) {
+			t.Errorf("expected shape: %v \nreceived shape: %v\n", target.Shape(),
+				computed.Shape())
+		}
+
+		// Ensure the output has the correct values computed
+		if target.Dims() != 0 {
+			targetBacking := target.Data().([]float64)
+			computedBacking := computed.Data().([]float64)
+			for i := range targetBacking {
+				if math.Abs(targetBacking[i]-computedBacking[i]) > threshold {
+					t.Errorf("incorrect result computed \n\texpected: %v "+
+						"\n\treceived: %v\n", targetBacking[i], computedBacking[i])
+				}
+			}
+		} else {
+			targetBacking := target.Data().(float64)
+			computedBacking := computed.Data().(float64)
+			if math.Abs(targetBacking-computedBacking) > threshold {
+				t.Errorf("incorrect result computed \n\texpected: %v "+
+					"\n\treceived: %v\n", targetBacking, computedBacking)
+			}
+		}
+
+		vm.Reset()
+		vm.Close()
+	}
 }
 
 // TestSqueeze tests the squeeze function
@@ -143,7 +754,8 @@ func TestSqueeze(t *testing.T) {
 		}
 
 		// Check that the output was unmodified
-		if len(inTensor.Shape()) == 1 && inTensor.Shape()[0] == 1 {
+		if (len(inTensor.Shape()) == 1 && inTensor.Shape()[0] == 1) ||
+			inTensor.Dims() == 0 {
 			outBacking := computed.Data().(float64)
 			if math.Abs(outBacking-backing[0]) > tolerance {
 				t.Errorf("input data was modified")
