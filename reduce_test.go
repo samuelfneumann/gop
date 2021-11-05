@@ -686,7 +686,7 @@ func TestReduceDiv(t *testing.T) {
 	}
 }
 
-// TestSqueeze tests the squeeze function
+// TestSqueeze tests the Squeeze function
 func TestSqueeze(t *testing.T) {
 	const tolerance float64 = 0.00001
 	const tests int = 100
@@ -766,6 +766,89 @@ func TestSqueeze(t *testing.T) {
 				if math.Abs(outBacking[i]-backing[i]) > tolerance {
 					t.Errorf("input data was modified")
 				}
+			}
+		}
+
+		vm.Close()
+	}
+}
+
+// TestUnsqueeze tests the Unsqueeze function
+func TestUnsqueeze(t *testing.T) {
+	// Test parameters
+	rand.Seed(time.Now().UnixNano())
+	const tolerance float64 = 0.00001 // Threshold to consider floats equal
+	const tests int = 100             // Number of tests to run
+
+	const maxDims int = 10   // Maximum number of dimensions for tensors
+	const minDims int = 1    // Minimum number of dimensions for tensors
+	const maxDimSize int = 5 // Maximum number of elements per dimension
+
+	for i := 0; i < tests; i++ {
+		// Get a random shape for the tensor to squeeze
+		shape := make([]int, minDims+rand.Intn(maxDims-minDims))
+		for i := range shape {
+			shape[i] = 1 + rand.Intn(maxDimSize-1) // Avoid dimension size 0
+		}
+
+		// Get a random axis to squeeze
+		axis := rand.Intn(len(shape))
+
+		// Create the backing tensor
+		backing := make([]float64, tensor.ProdInts(shape))
+		for i := range backing {
+			z := (rand.Float64() - 0.5) * 2.0
+			backing[i] = z
+		}
+		inTensor := tensor.NewDense(
+			tensor.Float64,
+			shape,
+			tensor.WithBacking(backing),
+		)
+
+		// Create the computational graph
+		g := G.NewGraph()
+
+		in := G.NewTensor(
+			g,
+			tensor.Float64,
+			len(shape),
+			G.WithValue(inTensor),
+		)
+		computedNode, err := Unsqueeze(in, axis)
+		if err != nil {
+			t.Error(err)
+		}
+		var computed G.Value
+		G.Read(computedNode, &computed)
+
+		// Run the graph
+		vm := G.NewTapeMachine(g)
+		vm.RunAll()
+		vm.Reset()
+
+		// Check the output shape
+		var computedI int
+		for i := range shape {
+			if i < axis {
+				computedI = i
+			} else {
+				computedI = i + 1
+			}
+			if computed.Shape()[computedI] != shape[i] {
+				t.Errorf("shape was modified %v to %v", shape, computedI)
+			}
+		}
+		if computed.Shape()[axis] != 1 {
+			t.Errorf("shape %v does not have axis %v unsqueezed",
+				computed.Shape(), axis)
+		}
+
+		// Check that the output was unmodified
+		outBacking := computed.Data().([]float64)
+		for i := range outBacking {
+			if math.Abs(outBacking[i]-backing[i]) > tolerance {
+				t.Errorf("input data was modified")
 			}
 		}
 

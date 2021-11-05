@@ -49,7 +49,7 @@ func Unsqueeze(x *G.Node, axis int) (*G.Node, error) {
 	shape := make(tensor.Shape, 0, x.Dims()+1)
 	shape = append(shape, x.Shape()[:axis]...)
 	shape = append(shape, 1)
-	shape = append(shape, shape[axis:]...)
+	shape = append(shape, x.Shape()[axis:]...)
 
 	out, err := G.Reshape(x, shape)
 	if err != nil {
