@@ -210,13 +210,13 @@ func (n *Normal) LogProb(x *G.Node) (*G.Node, error) {
 func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	x, err := n.fixShape(x)
 	if err != nil {
-		return nil, fmt.Errorf("prob: %v", err)
+		return nil, fmt.Errorf("cdf: %v", err)
 	}
 
 	if x.IsScalar() {
 		x, err = G.Reshape(x, []int{1})
 		if err != nil {
-			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
+			return nil, fmt.Errorf("cdf: could not reshape x: %v", err)
 		}
 	}
 
