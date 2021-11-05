@@ -43,6 +43,15 @@ Clamp/Clip               | Yes          | No
 Repeat                   | Yes          | No
 Gather                   | In progress  | No
 NormalSample             | No           | No
+ReduceMean               | Yes          | Yes
+ReduceAdd                | Yes          | Yes
+ReduceSub                | Yes          | Yes
+ReduceProd               | Yes          | Yes
+ReduceDiv                | Yes          | Yes
+Squeeze                  | Yes          | Yes
+Unsqueeze                | Yes          | Yes
+SqueezeAll               | Yes          | Yes
+SqueezeAllBut            | Yes          | Yes
 
 ## Distributions
 
