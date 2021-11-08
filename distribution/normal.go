@@ -55,7 +55,7 @@ type Normal struct {
 }
 
 // NewNormal returns a new Normal.
-func NewNormal(mean, stddev *G.Node, seed uint64) (Distribution, error) {
+func NewNormal(mean, stddev *G.Node, seed uint64) (*Normal, error) {
 	if !mean.Shape().Eq(stddev.Shape()) {
 		return nil, fmt.Errorf("newNormal: expected mean and stddev to "+
 			"have the same shape but got %v and %v", mean.Shape(),
