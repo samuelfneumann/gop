@@ -1055,7 +1055,10 @@ func TestNormalEntropyScalar(t *testing.T) {
 			t.Error(err)
 		}
 
-		entropy := n.Entropy()
+		entropy, err := n.Entropy()
+		if err != nil {
+			t.Error(err)
+		}
 		var eVal G.Value
 		G.Read(entropy, &eVal)
 
@@ -1143,7 +1146,10 @@ func TestNormalEntropyVec(t *testing.T) {
 			t.Error(err)
 		}
 
-		entropy := n.Entropy()
+		entropy, err := n.Entropy()
+		if err != nil {
+			t.Error(err)
+		}
 		var eVal G.Value
 		G.Read(entropy, &eVal)
 
@@ -1233,7 +1239,10 @@ func TestNormalEntropyTensor(t *testing.T) {
 			t.Error(err)
 		}
 
-		entropy := n.Entropy()
+		entropy, err := n.Entropy()
+		if err != nil {
+			t.Error(err)
+		}
 		var entropyVal G.Value
 		G.Read(entropy, &entropyVal)
 
@@ -1557,10 +1566,10 @@ func TestNormalCdfTensor(t *testing.T) {
 	}
 }
 
-// TestNormalCdfinvScalar tests the Cdfinv method of the Normal struct
+// TestNormalQuantileScalar tests the Quantile method of the Normal struct
 // on arbitrary, random scalar inputs. All tests are completely
 // randomized.
-func TestNormalCdfinvScalar(t *testing.T) {
+func TestNormalQuantileScalar(t *testing.T) {
 	const threshold float64 = 0.00001 // Threshold at which floats are equal
 	const tests int = 30              // Number of tests to run
 	rand.Seed(time.Now().UnixNano())
@@ -1637,7 +1646,7 @@ func TestNormalCdfinvScalar(t *testing.T) {
 			)
 		}
 
-		cdf, err := n.Cdfinv(prob)
+		cdf, err := n.Quantile(prob)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1661,10 +1670,10 @@ func TestNormalCdfinvScalar(t *testing.T) {
 	}
 }
 
-// TestNormalCdfinvVec tests the Cdfinv method of the Normal struct
+// TestNormalQuantileVec tests the Quantile method of the Normal struct
 // on arbitrary, random vector inputs. All tests are completely
 // randomized.
-func TestNormalCdfinvVec(t *testing.T) {
+func TestNormalQuantileVec(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 15       // Number of random tests to run
 	const scale float64 = 2.0  // Scale of distributions' mean and stddev
@@ -1739,7 +1748,7 @@ func TestNormalCdfinvVec(t *testing.T) {
 		probs := G.NewMatrix(g, tensor.Float64, G.WithValue(probT),
 			G.WithName("inputProbabilitiies"))
 
-		quantile, err := n.Cdfinv(probs)
+		quantile, err := n.Quantile(probs)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1763,10 +1772,10 @@ func TestNormalCdfinvVec(t *testing.T) {
 	}
 }
 
-// TestNormalCdfinvTensor tests the Cdfinv method of the Normal struct
+// TestNormalQuantileTensor tests the Quantile method of the Normal struct
 // on arbitrary, random tensor inputs. All tests are completely
 // randomized.
-func TestNormalCdfinvTensor(t *testing.T) {
+func TestNormalQuantileTensor(t *testing.T) {
 	const threshold = 0.000001 // Threshold for floats to be considered equal
 	const tests int = 5        // Number of tests to run
 	const scale float64 = 2.0
@@ -1849,7 +1858,7 @@ func TestNormalCdfinvTensor(t *testing.T) {
 		probs := G.NewTensor(g, tensor.Float64, probsT.Dims(),
 			G.WithValue(probsT), G.WithName("inputProbabilities"))
 
-		quantile, err := n.Cdfinv(probs)
+		quantile, err := n.Quantile(probs)
 		if err != nil {
 			t.Error(err)
 		}

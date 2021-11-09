@@ -253,10 +253,10 @@ func (n *Normal) Cdf(x *G.Node) (*G.Node, error) {
 	return x, nil
 }
 
-// Cdfinv computes the inverse cumulative distribution function at
+// Quantile computes the inverse cumulative distribution function at
 // probability p. The shape of p is treated in the same way as the
 // Prob() method.
-func (n *Normal) Cdfinv(p *G.Node) (*G.Node, error) {
+func (n *Normal) Quantile(p *G.Node) (*G.Node, error) {
 	p, err := n.fixShape(p)
 	if err != nil {
 		return nil, fmt.Errorf("prob: %v", err)
@@ -265,7 +265,7 @@ func (n *Normal) Cdfinv(p *G.Node) (*G.Node, error) {
 	if p.IsScalar() {
 		p, err = G.Reshape(p, []int{1})
 		if err != nil {
-			return nil, fmt.Errorf("prob: could not reshape x: %v", err)
+			return nil, fmt.Errorf("cdfinv: could not reshape x: %v", err)
 		}
 	}
 
@@ -328,7 +328,7 @@ func (n *Normal) Mean() *G.Node {
 
 // Entropy returns the entropy of the distribution(s) stored by the
 // receiver
-func (n *Normal) Entropy() *G.Node {
+func (n *Normal) Entropy() (*G.Node, error) {
 	var half, twoPi, two *G.Node
 	if n.Dtype() == tensor.Float64 {
 		half = n.mean.Graph().Constant(G.NewF64(0.5))
@@ -346,7 +346,7 @@ func (n *Normal) Entropy() *G.Node {
 	entropy = G.Must(G.HadamardProd(half, entropy))
 	entropy = G.Must(G.Add(entropy, half))
 
-	return entropy
+	return entropy, nil
 }
 
 // HasRsample returns whether the receiver supports reparameterized

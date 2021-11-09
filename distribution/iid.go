@@ -70,10 +70,13 @@ func (i *IID) LogProb(x *G.Node) (*G.Node, error) {
 }
 
 func (i *IID) Entropy() (*G.Node, error) {
-	x := i.Distribution.Entropy()
+	x, err := i.Distribution.Entropy()
+	if err != nil {
+		return nil, fmt.Errorf("entropy: could not take entropy of each "+
+			"i.i.d. variable: %v", err)
+	}
 
 	// Combine event dims
-	var err error
 	for j := 0; j < i.dims; j++ {
 		x, err = gop.ReduceAdd(x, x.Dims()-1, true)
 		if err != nil {
